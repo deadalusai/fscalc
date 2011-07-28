@@ -10,6 +10,6 @@ A simple parser and calculator engine written in F#
 Includes the following projects
 -------------------------------
 
-* Calculator.Engine - Parser and Calculation Engine (F#)
-* Calculator.Console - Command-line implementation (F#)
-* Calculator.WinForm - Simple winforms implementation (C#)
+* _Calculator.Engine_ - Parser and Calculation Engine (F#)
+* _Calculator.Console_ - Command-line implementation (F#)
+* _Calculator.WinForm_ - Simple winforms implementation (C#)
