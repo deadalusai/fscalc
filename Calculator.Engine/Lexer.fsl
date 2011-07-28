@@ -1,0 +1,44 @@
+﻿{
+module Lexer
+open System
+open Parser
+open Microsoft.FSharp.Text.Lexing
+
+let lexeme lexbuf =
+    LexBuffer<char>.LexemeString lexbuf
+}
+
+// These are some regular expression definitions
+let digit = ['0'-'9']
+let alpha = ['a'-'z' '_' 'A'-'Z']
+let whitespace = [' ' '\t']
+let newline = ('\n' | '\r' '\n')
+let eE = (['e''E']('+'|'-')?digit+)         // e.g. 1.0e+10 1.0E20 1.0e-11
+
+rule tokenize = parse
+| whitespace+	{ tokenize lexbuf }
+| newline       { tokenize lexbuf }
+// Operators
+| "^"			{ EXPONENT }
+| "sqrt"        { SQRT }
+| "sin"         { SIN }
+| "cos"         { COS }
+| "tan"         { TAN }
+| "mod"         { MOD }
+| "+"			{ PLUS }
+| "-"			{ MINUS }
+| "*"			{ ASTER }
+| "/"			{ SLASH }
+// Misc
+| "("			{ LPAREN }
+| ")"			{ RPAREN }
+// Numberic constants
+| digit+					      { INT64 (Int64.Parse(lexeme lexbuf)) }
+| (digit*('.'digit+)|digit+)eE?   { FLOAT (Double.Parse(lexeme lexbuf)) } //allows 0.2; .2; 2; .2e10; 2e10; 2.2e-10;
+// Variables
+| "let"         { LET }
+| "del"         { DEL }
+| alpha+        { NAME (lexeme lexbuf) }
+| "="           { EQUAL }
+// EOF
+| eof   { EOF }
