@@ -20,9 +20,11 @@ namespace WinFormsCalculator
         {
             InitializeComponent();
 
-            _state = CalcImpl.initState();
-            //_state = new CalcState(new Dictionary<string, Double>(), Console.Out, false);
-            
+            var defaults = new Dictionary<string, Double>() {
+                { "pi", 3.14159 }
+            };
+
+            _state = CalcImpl.initState(defaults);
         }
 
         private void button1_Click(object sender, EventArgs e)

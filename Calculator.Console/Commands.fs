@@ -23,8 +23,8 @@ module CommandHelpers =
         if idx = -1 then
             { Name = str; Args = null }
         else
-            { Name = str.Substring (0, idx); 
-              Args = (str.Substring idx).Trim() }
+            { Name = str.Substring(0, idx); 
+              Args = (str.Substring(idx)).Trim() }
                 
     let createCommand (commandstr:string) =
         let input = (createInputPair commandstr)

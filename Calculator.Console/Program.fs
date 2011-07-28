@@ -5,8 +5,12 @@ open System.IO
 open Calculator.Engine
 
 module Main =
-    //Set up CalcState
-    let calcState = CalcImpl.initState ()
+    //some defaults..
+    let defaults = Map.empty
+                      .Add ("pi", 3.14159)
+
+    //set up CalcState
+    let calcState = CalcImpl.initState defaults
 
     let printerr message =
         fprintfn System.Console.Error "ERROR: %s" message
@@ -32,7 +36,7 @@ module Main =
                 | [] -> ()
                 | line::tail ->
                     let line = line.Trim()
-                    //Hack hack - ignore whitespace and comment lines
+                    //ignore whitespace and comment lines
                     if (line.Length > 0 && not (line.StartsWith("#"))) then
                         runEquation line
                     runner tail

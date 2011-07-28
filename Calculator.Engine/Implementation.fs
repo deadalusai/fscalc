@@ -1,16 +1,13 @@
 ﻿namespace Calculator.Engine
 open Microsoft.FSharp.Text.Lexing
 open System
+open System.Collections.Generic
 open Lexer
 open Parser
 
 module CalcImpl =
-    let initState () : CalcState =
-        let defaults = Map.empty
-                          //some defaults..
-                          .Add ("pi", 3.14159)
-
-        { memory = new System.Collections.Generic.Dictionary<string, Double> ( defaults );
+    let initState (defaults:IDictionary<string, Double>) : CalcState =
+        { memory = new Dictionary<string, Double>(defaults);
           debugOutput = System.Console.Out;
           debugMode = false }
 
