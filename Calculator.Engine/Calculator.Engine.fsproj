@@ -60,8 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.PowerPack">
-      <HintPath>C:\Program Files\FSharpPowerPack-1.9.9.9\bin\FSharp.PowerPack.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\FSharpPowerPack-2.0.0.0\bin\FSharp.PowerPack.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core">
