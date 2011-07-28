@@ -18,7 +18,7 @@ Requirements
 ------------
 
 * FSharp.Core.dll
-** Included in the F# CTP - http://go.microsoft.com/fwlink/?LinkId=151924
+  * Included in the F# CTP - http://go.microsoft.com/fwlink/?LinkId=151924
 
 * FSharp.PowerPack.dll
-** Included in the F# Power Pack - http://go.microsoft.com/fwlink/?LinkID=183337
+  * Included in the F# Power Pack - http://go.microsoft.com/fwlink/?LinkID=183337
