@@ -4,6 +4,8 @@
 
 #hidden folders
 .*/
+#except nuget
+!.nuget/
 
 #Visual Studio files
 *.[Oo]bj
