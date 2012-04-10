@@ -39,6 +39,7 @@
   <ItemGroup>
     <Compile Include="Ast.fs" />
     <Compile Include="Engine.fs" />
+    <Compile Include="Implementation.fs" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

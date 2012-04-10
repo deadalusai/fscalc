@@ -52,9 +52,11 @@
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <ProjectReference Include="..\Calculator.Engine\Calculator.Engine.fsproj">
-      <Name>Calculator.Engine</Name>
-      <Project>{b9db81e7-1415-4b30-8b05-e19ebce2324f}</Project>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Calculator.Engine.FParsec\Calculator.Engine.FParsec.fsproj">
+      <Name>Calculator.Engine.FParsec</Name>
+      <Project>{b42f17f3-f555-4346-8e36-c36531810678}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

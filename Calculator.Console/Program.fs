@@ -2,7 +2,8 @@
 
 open System
 open System.IO
-open Calculator.Engine
+open Calculator.Ast
+open Calculator.Implementation
 
 module Main =
     //some defaults..
@@ -17,14 +18,15 @@ module Main =
 
     let runEquation (line:string) =
         try
-            let command = CalcImpl.parseLine line
-            let result  = CalcImpl.executeCommand calcState command
-
-            //print result
-            match command with
-            | Equation (expr)            -> printfn "= %g" result
-            | VarAssignment (name, expr) -> printfn "%s = %g" (CalcImpl.evalName name) result
-            | VarDeletion (name)         -> ignore ()
+            match (CalcImpl.parseLine line) with
+            | Error msg -> failwith msg
+            | Result command -> 
+                let value  = CalcImpl.executeCommand calcState command
+                //print result
+                match command with
+                | Expr expr                  -> printfn "= %g" value
+                | VarAssignment (name, expr) -> printfn "%s = %g" (CalcImpl.evalName name) value
+                | VarDeletion (name)         -> ignore ()
 
         with ex ->
             printerr ex.Message
@@ -44,7 +46,7 @@ module Main =
         with ex ->
             printerr ex.Message
 
-    let processCommand (command:Command) = 
+    let processCommand command = 
         match command with
         //exit condition
         | Exit -> exit 0
