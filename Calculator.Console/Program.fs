@@ -19,21 +19,18 @@ module Main =
     let runEquation (line:string) =
         try
             match (CalcImpl.parseLine line) with
-            | Error msg -> 
-                printerr msg
-            
-            | Result command ->
+            | Error msg -> printerr msg
+            | Command command ->
                 //try execute the command...
-                (CalcImpl.executeCommand calcState command)
+                let evalResult = (CalcImpl.executeCommand calcState command)
                 //guess what to print out
-                match command with
-                | Expr expr   -> printfn "= %g" (CalcImpl.evalExpr calcState expr)
-                | Update list ->
+                match evalResult with
+                | ExprResult result -> printfn "= %g" result
+                | UpdateResult list ->
                     for command in list do
                         match command with
-                        | Deletion list -> ()
-                        | Assignment (name, expr) -> 
-                            printfn "%s = %g" (CalcImpl.evalName name) (CalcImpl.evalExpr calcState expr)
+                        | DeletionResult name -> printfn "deleted %s" name
+                        | AssignmentResult (name, result) -> printfn "%s = %g" name result
         with ex ->
             printerr ex.Message
     

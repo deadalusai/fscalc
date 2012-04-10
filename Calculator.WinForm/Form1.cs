@@ -33,42 +33,38 @@ namespace WinFormsCalculator
 
                 if (result.IsError)
                 {
-                    textBox2.AppendText(((CalcResult.Error) result).Item + Environment.NewLine);
+                    textBox2.AppendText(((ParseResult.Error) result).Item + Environment.NewLine);
                     return;
                 }
 
-                var command = ((CalcResult.Result) result).Item;
+                var command = ((ParseResult.Command)result).Item;
 
                 //try execute the command against the _state
-                CalcImpl.executeCommand(_state, command);
+                var commandResult = CalcImpl.executeCommand(_state, command);
 
-                //work out what to tell the user
-                if (command.IsExpr)
+                //render to the user
+                if (commandResult.IsExprResult)
                 {
-                    var value = CalcImpl.evalExpr(_state, ((Ast.Command.Expr)command).Item);
+                    var value = ((CommandResult.ExprResult)commandResult).Item;
+
                     textBox2.AppendText("= ");
                     textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
                     textBox2.AppendText(Environment.NewLine);
                 }
                 else 
                 {
-                    var update = ((Ast.Command.Update)command).Item;
+                    var update = ((CommandResult.UpdateResult)commandResult).Item;
 
-                    foreach (var item in update.Where(i => i.IsAssignment).Cast<Ast.Update.Assignment>())
+                    foreach (var item in update.Where(i => i.IsAssignmentResult).Cast<UpdateResult.AssignmentResult>())
                     {
-                        var name = CalcImpl.evalName(item.Item1);
-                        var value = CalcImpl.evalExpr(_state, item.Item2);
-
-                        textBox2.AppendText(name);
+                        textBox2.AppendText(item.Item1);
                         textBox2.AppendText(" = ");
-                        textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
+                        textBox2.AppendText(item.Item2.ToString(CultureInfo.InvariantCulture));
                         textBox2.AppendText(Environment.NewLine);
                     }
-                    foreach (var item in update.Where(i => i.IsDeletion).Cast<Ast.Update.Deletion>())
+                    foreach (var item in update.Where(i => i.IsDeletionResult).Cast<UpdateResult.DeletionResult>())
                     {
-                        var name = CalcImpl.evalName(item.Item);
-
-                        textBox2.AppendText(name);
+                        textBox2.AppendText(item.Item);
                         textBox2.AppendText(" deleted");
                         textBox2.AppendText(Environment.NewLine);
                     }
