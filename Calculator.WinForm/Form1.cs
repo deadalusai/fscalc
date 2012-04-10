@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Windows.Forms;
 using Calculator;
 using Calculator.Implementation;
+using Microsoft.FSharp.Core;
 
 namespace WinFormsCalculator
 {
@@ -23,51 +23,58 @@ namespace WinFormsCalculator
             _state = CalcImpl.initState(defaults);
         }
 
+        private Unit OnCommandResult(CommandResult commandResult)
+        {
+            //render to the user
+            if (commandResult.IsEvalResult)
+            {
+                var evalResult = ((CommandResult.EvalResult)commandResult);
+
+                textBox2.AppendText("= ");
+                textBox2.AppendText(evalResult.Item.ToString(CultureInfo.InvariantCulture));
+                textBox2.AppendText(Environment.NewLine);
+            }
+            else if (commandResult.IsAssignmentResult)
+            {
+                var assignmentResult = ((CommandResult.AssignmentResult)commandResult);
+
+                textBox2.AppendText(assignmentResult.Item1);
+                textBox2.AppendText(" = ");
+                textBox2.AppendText(assignmentResult.Item2.ToString(CultureInfo.InvariantCulture));
+                textBox2.AppendText(Environment.NewLine);
+            }
+            else if (commandResult.IsDeletionResult)
+            {
+                var deletionResult = ((CommandResult.DeletionResult)commandResult);
+
+                textBox2.AppendText(deletionResult.Item);
+                textBox2.AppendText(" deleted");
+                textBox2.AppendText(Environment.NewLine);
+            }
+
+            return null;
+        }
+
         private void button1_Click(object sender, EventArgs e)
         {
             string line = textBox1.Text;
 
             try
             {
-                var result = CalcImpl.parseLine(line);
+                ParseResult result = CalcImpl.parseLine(line);
 
                 if (result.IsError)
                 {
                     textBox2.AppendText(((ParseResult.Error) result).Item + Environment.NewLine);
-                    return;
                 }
-
-                var command = ((ParseResult.Command)result).Item;
-
-                //try execute the command against the _state
-                var commandResult = CalcImpl.executeCommand(_state, command);
-
-                //render to the user
-                if (commandResult.IsExprResult)
+                else if (result.IsCommand)
                 {
-                    var value = ((CommandResult.ExprResult)commandResult).Item;
+                    var command = ((ParseResult.Command)result).Item;
 
-                    textBox2.AppendText("= ");
-                    textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
-                    textBox2.AppendText(Environment.NewLine);
-                }
-                else 
-                {
-                    var update = ((CommandResult.UpdateResult)commandResult).Item;
+                    var callback = FSharpFunc<CommandResult, Unit>.FromConverter(OnCommandResult);
 
-                    foreach (var item in update.Where(i => i.IsAssignmentResult).Cast<UpdateResult.AssignmentResult>())
-                    {
-                        textBox2.AppendText(item.Item1);
-                        textBox2.AppendText(" = ");
-                        textBox2.AppendText(item.Item2.ToString(CultureInfo.InvariantCulture));
-                        textBox2.AppendText(Environment.NewLine);
-                    }
-                    foreach (var item in update.Where(i => i.IsDeletionResult).Cast<UpdateResult.DeletionResult>())
-                    {
-                        textBox2.AppendText(item.Item);
-                        textBox2.AppendText(" deleted");
-                        textBox2.AppendText(Environment.NewLine);
-                    }
+                    //try execute the command against the _state
+                    CalcImpl.executeCommand(_state, command, callback);
                 }
             }
             catch (Exception ex)

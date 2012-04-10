@@ -21,16 +21,14 @@ module Main =
             match (CalcImpl.parseLine line) with
             | Error msg -> printerr msg
             | Command command ->
-                //try execute the command...
-                let evalResult = (CalcImpl.executeCommand calcState command)
-                //guess what to print out
-                match evalResult with
-                | ExprResult result -> printfn "= %g" result
-                | UpdateResult list ->
-                    for command in list do
-                        match command with
-                        | DeletionResult name -> printfn "deleted %s" name
-                        | AssignmentResult (name, result) -> printfn "%s = %g" name result
+                let eachResult = (CalcImpl.executeCommand calcState command)
+                let printResult commandResult =
+                    match commandResult with
+                    | EvalResult result -> printfn "= %g" result
+                    | DeletionResult name -> printfn "deleted %s" name
+                    | AssignmentResult (name, result) -> printfn "%s = %g" name result
+                //for each result, print to the output
+                eachResult printResult
         with ex ->
             printerr ex.Message
     

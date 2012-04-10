@@ -14,10 +14,7 @@ type ParseResult =
 | Error of string
 
 type CommandResult =
-| ExprResult of double
-| UpdateResult of UpdateResult list
-
-and UpdateResult =
+| EvalResult of double
 | AssignmentResult of string * double
 | DeletionResult of string
 
@@ -72,31 +69,27 @@ module CalcImpl =
         else s.memory.[name]
 
     /// Execute a command
-    let executeCommand (s:CalcState) (eq:Command) =
+    let executeCommand (s:CalcState) (eq:Command) (onResult:CommandResult -> unit) =
         debug s eq
         match eq with
         | Expr expr -> 
             let result = (evalExpr s expr)
             s.memory.["_"] <- result //set the last result to memory
-            ExprResult result
+            onResult (EvalResult result)
         
         | Update list ->
             //iterate through each update command, apply it and yield a result
-            let updates = seq {
-                for command in list do
-                    match command with
-                    | Assignment (name, expr) -> 
-                        let name = (evalName name)
-                        if (name = "_") then failwith "_ is a protected variable name"
-                        let result = (evalExpr s expr)
-                        s.memory.[name] <- result //set the result to memory
-                        yield AssignmentResult (name, result)
+            for command in list do
+                match command with
+                | Assignment (name, expr) -> 
+                    let name = (evalName name)
+                    if (name = "_") then failwith "_ is a protected variable name"
+                    let result = (evalExpr s expr)
+                    s.memory.[name] <- result //set the result to memory
+                    onResult (AssignmentResult (name, result))
 
-                    | Deletion (name) ->
-                        (evalVariable s name) |> ignore //checks to make sure the variable exists
-                        let name = (evalName name)
-                        s.memory.Remove name |> ignore //deletes the variable value
-                        yield DeletionResult name
-            }
-            //Evaluates the updates seq
-            UpdateResult (updates |> List.ofSeq)
+                | Deletion (name) ->
+                    (evalVariable s name) |> ignore //checks to make sure the variable exists
+                    let name = (evalName name)
+                    s.memory.Remove name |> ignore //deletes the variable value
+                    onResult (DeletionResult name)
