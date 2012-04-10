@@ -41,11 +41,17 @@ let pfunction = psqrt <|> psin <|> pcos <|> ptan
     
 //parse an assignment command
 // let Name = Expr
-let passignment = (str_ws1 "let" >>. pname .>> ws .>> str_ws "=") .>>. pexpr |>> VarAssignment
+let passignment = 
+    let binding' = (pname .>> ws .>> str_ws "=") .>>. pexpr .>> ws |>> Assignment
+    let manyBindings' = sepBy binding' (str_ws ",")
+    str_ws1 "let" >>. manyBindings' |>> Update
 
 //parse a deletion command
 // del Name
-let pdeletion = str_ws1 "del" >>. pname |>> VarDeletion
+let pdeletion = 
+    let name' = (pname .>> ws |>> Deletion)
+    let manyNames' = sepBy name' (str_ws ",")
+    str_ws1 "del" >>. manyNames' |>> Update
 
 //implement the pexpr parser
 do pexprRef :=

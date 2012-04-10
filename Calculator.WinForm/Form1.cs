@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Windows.Forms;
 using Calculator;
 using Calculator.Implementation;
@@ -28,7 +29,7 @@ namespace WinFormsCalculator
 
             try
             {
-                CalcResult result = CalcImpl.parseLine(line);
+                var result = CalcImpl.parseLine(line);
 
                 if (result.IsError)
                 {
@@ -36,34 +37,41 @@ namespace WinFormsCalculator
                     return;
                 }
 
-                Ast.Command command = ((CalcResult.Result) result).Item;
+                var command = ((CalcResult.Result) result).Item;
 
-                double value = CalcImpl.executeCommand(_state, command);
+                //try execute the command against the _state
+                CalcImpl.executeCommand(_state, command);
 
+                //work out what to tell the user
                 if (command.IsExpr)
                 {
+                    var value = CalcImpl.evalExpr(_state, ((Ast.Command.Expr)command).Item);
                     textBox2.AppendText("= ");
                     textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
                     textBox2.AppendText(Environment.NewLine);
                 }
-                else if (command.IsVarAssignment)
+                else 
                 {
-                    Ast.Name name = ((Ast.Command.VarAssignment) command).Item1;
-                    string varName = CalcImpl.evalName(name);
+                    var update = ((Ast.Command.Update)command).Item;
 
-                    textBox2.AppendText(varName);
-                    textBox2.AppendText(" = ");
-                    textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
-                    textBox2.AppendText(Environment.NewLine);
-                }
-                else if (command.IsVarDeletion)
-                {
-                    Ast.Name name = ((Ast.Command.VarDeletion) command).Item;
-                    string varName = CalcImpl.evalName(name);
+                    foreach (var item in update.Where(i => i.IsAssignment).Cast<Ast.Update.Assignment>())
+                    {
+                        var name = CalcImpl.evalName(item.Item1);
+                        var value = CalcImpl.evalExpr(_state, item.Item2);
 
-                    textBox2.AppendText(varName);
-                    textBox2.AppendText(" deleted");
-                    textBox2.AppendText(Environment.NewLine);
+                        textBox2.AppendText(name);
+                        textBox2.AppendText(" = ");
+                        textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
+                        textBox2.AppendText(Environment.NewLine);
+                    }
+                    foreach (var item in update.Where(i => i.IsDeletion).Cast<Ast.Update.Deletion>())
+                    {
+                        var name = CalcImpl.evalName(item.Item);
+
+                        textBox2.AppendText(name);
+                        textBox2.AppendText(" deleted");
+                        textBox2.AppendText(Environment.NewLine);
+                    }
                 }
             }
             catch (Exception ex)

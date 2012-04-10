@@ -64,22 +64,22 @@ module CalcImpl =
         else s.memory.[name]
 
     /// Execute a command
-    and executeCommand (s:CalcState) (eq:Command) =
+    let executeCommand (s:CalcState) (eq:Command) =
         debug s eq
         match eq with
         | Expr expr -> 
             let result = (evalExpr s expr)
             s.memory.["_"] <- result //set the last result to memory
-            result
         
-        | VarAssignment (name, expr) -> 
-            let name = (evalName name)
-            if (name = "_") then failwith "_ is a protected variable name"
-            let result = (evalExpr s expr)
-            s.memory.[name] <- result //set the result to memory
-            result
+        | Update list ->
+            for command in list do
+                match command with
+                | Assignment (name, expr) -> 
+                    let name = (evalName name)
+                    if (name = "_") then failwith "_ is a protected variable name"
+                    let result = (evalExpr s expr)
+                    s.memory.[name] <- result //set the result to memory
 
-        | VarDeletion (name) ->
-            (evalVariable s name) |> ignore //checks to make sure the variable exists
-            s.memory.Remove (evalName name) |> ignore //deletes the variable value
-            Double.NaN //return a default result (should be ignored)
+                | Deletion (name) ->
+                    (evalVariable s name) |> ignore //checks to make sure the variable exists
+                    s.memory.Remove (evalName name) |> ignore //deletes the variable value

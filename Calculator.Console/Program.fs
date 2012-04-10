@@ -22,14 +22,18 @@ module Main =
             | Error msg -> 
                 printerr msg
             
-            | Result command -> 
-                let value  = CalcImpl.executeCommand calcState command
-                //print result
+            | Result command ->
+                //try execute the command...
+                (CalcImpl.executeCommand calcState command)
+                //guess what to print out
                 match command with
-                | Expr expr                  -> printfn "= %g" value
-                | VarAssignment (name, expr) -> printfn "%s = %g" (CalcImpl.evalName name) value
-                | VarDeletion (name)         -> ignore ()
-
+                | Expr expr   -> printfn "= %g" (CalcImpl.evalExpr calcState expr)
+                | Update list ->
+                    for command in list do
+                        match command with
+                        | Deletion list -> ()
+                        | Assignment (name, expr) -> 
+                            printfn "%s = %g" (CalcImpl.evalName name) (CalcImpl.evalExpr calcState expr)
         with ex ->
             printerr ex.Message
     
