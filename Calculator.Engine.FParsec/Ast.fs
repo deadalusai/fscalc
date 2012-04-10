@@ -13,7 +13,14 @@ and Expr =
 | Subtract  of Expr * Expr
 | Divide    of Expr * Expr
 | Power     of Expr * Expr
+| Modulo    of Expr * Expr
+| Function  of Function
+
+and Function =
 | Sqrt      of Expr
+| Sin       of Expr
+| Cos       of Expr
+| Tan       of Expr
 
 and Command =
 | Expr of Expr

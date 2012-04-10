@@ -38,6 +38,15 @@ module CalcImpl =
         | Subtract (l, r) -> (evalExpr s l) - (evalExpr s r)
         | Divide (l, r) -> (evalExpr s l) / (evalExpr s r)
         | Power (l, r) -> Math.Pow(evalExpr s l, evalExpr s r)
+        | Modulo (l, r) -> (evalExpr s l) % (evalExpr s r)
+        | Function f -> evalFunction s f
+        
+    and evalFunction (s:CalcState) (fn:Function) =
+        debug s fn
+        match fn with
+        | Sin e -> Math.Sin(evalExpr s e)
+        | Cos e -> Math.Cos(evalExpr s e)
+        | Tan e -> Math.Tan(evalExpr s e)
         | Sqrt e -> Math.Sqrt(evalExpr s e)
 
     and evalTerm (s:CalcState) (term:Term) =

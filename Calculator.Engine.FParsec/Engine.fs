@@ -28,8 +28,18 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 //parse a float (constant) or variable (name) and convert it to a Term expression 
 let pterm = ((pfloat |>> Constant) <|> (pname |>> Variable)) |>> Term
 
-//parse a sqrt operation: sqrt 64 = 8
-let psqrt = str_ws1 "sqrt" >>? pexpr |>> Sqrt
+//parse any supported functions
+let pfunction =
+    let toFunction (fname, expr) =
+        match fname with
+        | "sin" -> Sin expr
+        | "cos" -> Cos expr
+        | "tan" -> Tan expr
+        | "sqrt" -> Sqrt expr
+        | _ -> failwith (sprintf "Unrecognised function %s" fname)
+    //match any of sin cos tan or sqrt
+    let pfname = (pstring "sin" <|> pstring "cos" <|> pstring "tan" <|> pstring "sqrt")
+    pfname .>>? ws1 .>>.? pexpr |>> toFunction |>> Function
 
 //parse an assignment command
 // let Name = Expr
@@ -43,13 +53,14 @@ let pdeletion = str_ws1 "del" >>. pname |>> VarDeletion
 do pexprRef :=
     let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
     let expr = opp.ExpressionParser
-    opp.TermParser <- (psqrt .>> ws) <|> (pterm .>> ws) <|> between (str_ws "(") (str_ws ")") expr
+    opp.TermParser <- (pfunction .>> ws) <|> (pterm .>> ws) <|> between (str_ws "(") (str_ws ")") expr
     //BEDMAS
     opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Subtract (x, y)))
     opp.AddOperator(InfixOperator("+", ws, 2, Associativity.Left, fun x y -> Add (x, y)))
     opp.AddOperator(InfixOperator("*", ws, 3, Associativity.Left, fun x y -> Multiply (x, y)))
     opp.AddOperator(InfixOperator("/", ws, 4, Associativity.Left, fun x y -> Divide (x, y)))
     opp.AddOperator(InfixOperator("^", ws, 5, Associativity.Left, fun x y -> Power (x, y)))
+    opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
     expr
 
 let pcommand_eof = (passignment <|> pdeletion <|> (pexpr |>> Expr)) .>> eof
