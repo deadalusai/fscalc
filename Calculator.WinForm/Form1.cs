@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Windows.Forms;
 using Calculator;
-using Calculator.Implementation;
 using Microsoft.FSharp.Core;
 
 namespace WinFormsCalculator
@@ -20,15 +19,15 @@ namespace WinFormsCalculator
                 { "pi", 3.14159 }
             };
 
-            _state = CalcImpl.initState(defaults);
+            _state = Implementation.initCalcState(defaults);
         }
 
-        private Unit OnCommandResult(CommandResult commandResult)
+        private Unit OnCommandResult(Implementation.CommandResult commandResult)
         {
             //render to the user
             if (commandResult.IsEvalResult)
             {
-                var evalResult = ((CommandResult.EvalResult)commandResult);
+                var evalResult = ((Implementation.CommandResult.EvalResult)commandResult);
 
                 textBox2.AppendText("= ");
                 textBox2.AppendText(evalResult.Item.ToString(CultureInfo.InvariantCulture));
@@ -36,7 +35,7 @@ namespace WinFormsCalculator
             }
             else if (commandResult.IsAssignmentResult)
             {
-                var assignmentResult = ((CommandResult.AssignmentResult)commandResult);
+                var assignmentResult = ((Implementation.CommandResult.AssignmentResult)commandResult);
 
                 textBox2.AppendText(assignmentResult.Item1);
                 textBox2.AppendText(" = ");
@@ -45,7 +44,7 @@ namespace WinFormsCalculator
             }
             else if (commandResult.IsDeletionResult)
             {
-                var deletionResult = ((CommandResult.DeletionResult)commandResult);
+                var deletionResult = ((Implementation.CommandResult.DeletionResult)commandResult);
 
                 textBox2.AppendText(deletionResult.Item);
                 textBox2.AppendText(" deleted");
@@ -61,20 +60,20 @@ namespace WinFormsCalculator
 
             try
             {
-                ParseResult result = CalcImpl.parseLine(line);
+                var result = Implementation.parseLine(line);
 
                 if (result.IsError)
                 {
-                    textBox2.AppendText(((ParseResult.Error) result).Item + Environment.NewLine);
+                    textBox2.AppendText(((Implementation.ParseResult.Error) result).Item + Environment.NewLine);
                 }
                 else if (result.IsCommand)
                 {
-                    var command = ((ParseResult.Command)result).Item;
+                    var command = ((Implementation.ParseResult.Command)result).Item;
 
-                    var callback = FSharpFunc<CommandResult, Unit>.FromConverter(OnCommandResult);
+                    var callback = FSharpFunc<Implementation.CommandResult, Unit>.FromConverter(OnCommandResult);
 
                     //try execute the command against the _state
-                    CalcImpl.executeCommand(_state, command, callback);
+                    Implementation.executeCommand(_state, command, callback);
                 }
             }
             catch (Exception ex)

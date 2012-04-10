@@ -49,6 +49,6 @@ Each line is interpreted as one equation
 Type 'print' to print out the variables in memory
 Type 'debug on|off' to enable/disable debug mode
 Type 'debug' to see the current debug mode
-Type 'cls' to clear the screen
+Type 'cls' or 'clear' to clear the screen
 Type 'q' or 'exit' to quit
 Type '?' or 'help' to see this help text"
