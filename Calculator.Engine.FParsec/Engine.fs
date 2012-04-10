@@ -20,7 +20,7 @@ let private str_ws1 s = skipString s >>? ws1
 let pname =
     let isAsciiLetterOrUnderscore c = isAsciiLetter c || isAnyOf "_" c
     let isAsciiLetterOrUnderscoreOrDigit c = isAsciiLetterOrUnderscore c || isDigit c
-    many1Satisfy2 isAsciiLetterOrUnderscore isAsciiLetterOrUnderscoreOrDigit |>> Name
+    many1Satisfy2L isAsciiLetterOrUnderscore isAsciiLetterOrUnderscoreOrDigit "variable name" |>> Name
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
 let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
@@ -65,7 +65,7 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("/", ws, 4, Associativity.Left, fun x y -> Divide (x, y)))
     opp.AddOperator(InfixOperator("^", ws, 5, Associativity.Left, fun x y -> Power (x, y)))
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
-    expr
+    expr <?> "expression"
 
 let pcommand_eof = (passignment <|> pdeletion <|> (pexpr |>> Expr)) .>> eof
 
