@@ -19,7 +19,9 @@ module Main =
     let runEquation (line:string) =
         try
             match (CalcImpl.parseLine line) with
-            | Error msg -> failwith msg
+            | Error msg -> 
+                printerr msg
+            
             | Result command -> 
                 let value  = CalcImpl.executeCommand calcState command
                 //print result

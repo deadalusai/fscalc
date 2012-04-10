@@ -8,7 +8,7 @@
     <ProjectGuid>{f87d15d0-e04f-4a84-99c3-e5a7a160aede}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>Calculator.Console</RootNamespace>
-    <AssemblyName>calculator</AssemblyName>
+    <AssemblyName>fscalc</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>

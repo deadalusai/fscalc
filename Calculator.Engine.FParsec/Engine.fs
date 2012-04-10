@@ -29,18 +29,16 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 let pterm = ((pfloat |>> Constant) <|> (pname |>> Variable)) |>> Term
 
 //parse any supported functions
-let pfunction =
-    let toFunction (fname, expr) =
-        match fname with
-        | "sin" -> Sin expr
-        | "cos" -> Cos expr
-        | "tan" -> Tan expr
-        | "sqrt" -> Sqrt expr
-        | _ -> failwith (sprintf "Unrecognised function %s" fname)
-    //match any of sin cos tan or sqrt
-    let pfname = (pstring "sin" <|> pstring "cos" <|> pstring "tan" <|> pstring "sqrt")
-    pfname .>>? ws1 .>>.? pexpr |>> toFunction |>> Function
+let private createFunctionParser name fn =
+    pstring name >>? ws1 >>? pexpr |>> fn |>> Function
 
+let private psin  = createFunctionParser "sin"  (fun expr -> Sin expr)
+let private pcos  = createFunctionParser "cos"  (fun expr -> Cos expr)
+let private ptan  = createFunctionParser "tan"  (fun expr -> Tan expr)
+let private psqrt = createFunctionParser "sqrt" (fun expr -> Sqrt expr)
+
+let pfunction = psqrt <|> psin <|> pcos <|> ptan
+    
 //parse an assignment command
 // let Name = Expr
 let passignment = (str_ws1 "let" >>. pname .>> ws .>> str_ws "=") .>>. pexpr |>> VarAssignment
