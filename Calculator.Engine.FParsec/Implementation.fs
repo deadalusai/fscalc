@@ -71,5 +71,6 @@ module CalcImpl =
             result
 
         | VarDeletion (name) ->
+            (evalVariable s name) |> ignore //checks to make sure the variable exists
             s.memory.Remove (evalName name) |> ignore //deletes the variable value
             Double.NaN //return a default result (should be ignored)
