@@ -29,12 +29,12 @@ let parseLine (line:string) =
     | Success (expr, state, pos) -> Command expr
     | Failure (msg, err, state) -> Error msg
 
-let private debug (s:CalcState) (unit) =
+let private debug (s:CalcState) format (a:'a) =
     if (s.debugMode = true && not (s.debugOutput = null)) then
-        printfn "Evaluating %A" unit
+        printfn format a
         
 let rec evalExpr (s:CalcState) (expr:Expr) =
-    debug s expr
+    debug s "eval expr: %A" expr
     match expr with
     | Term t -> evalTerm s t
     | Add (l, r) -> (evalExpr s l) + (evalExpr s r)
@@ -46,7 +46,7 @@ let rec evalExpr (s:CalcState) (expr:Expr) =
     | Function f -> evalFunction s f
         
 and evalFunction (s:CalcState) (fn:Function) =
-    debug s fn
+    debug s "eval function: %A" fn
     match fn with
     | Sin e -> Math.Sin(evalExpr s e)
     | Cos e -> Math.Cos(evalExpr s e)
@@ -54,7 +54,7 @@ and evalFunction (s:CalcState) (fn:Function) =
     | Sqrt e -> Math.Sqrt(evalExpr s e)
 
 and evalTerm (s:CalcState) (term:Term) =
-    debug s term
+    debug s "eval term: %A" term
     match term with
     | Constant c -> c
     | Variable n -> evalVariable s n
@@ -62,6 +62,7 @@ and evalTerm (s:CalcState) (term:Term) =
 and evalName (name:Name) = match name with Name n -> n
 
 and evalVariable (s:CalcState) (name:Name) =
+    debug s "eval variable: %A" name
     let name = (evalName name)
     //look for a variable in memory
     if not (s.memory.ContainsKey name) then failwith (sprintf "variable %s does not exist" name)
@@ -69,7 +70,7 @@ and evalVariable (s:CalcState) (name:Name) =
 
 /// Execute a command
 let executeCommand (s:CalcState) (eq:Command) (onResult:CommandResult -> unit) =
-    debug s eq
+    debug s "execute command: %A" eq
     match eq with
     | Expr expr -> 
         let result = (evalExpr s expr)
