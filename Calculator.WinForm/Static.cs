@@ -1,23 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using Calculator;
 using Microsoft.FSharp.Core;
-using Calculator.Engine;
 
 namespace WinFormsCalculator
 {
     public static class Static
     {
-        private static FSharpFunc<CalcCommand.Equation, string> _formatter;
+        private static FSharpFunc<Ast.Command.Expr, string> _formatter;
         static Static()
         {
-            _formatter = ExtraTopLevelOperators.PrintFormatToString<FSharpFunc<CalcCommand.Equation, string>>(
-                new PrintfFormat<FSharpFunc<CalcCommand.Equation, string>, Unit, string, string, string>("%A")
+            _formatter = ExtraTopLevelOperators.PrintFormatToString<FSharpFunc<Ast.Command.Expr, string>>(
+                new PrintfFormat<FSharpFunc<Ast.Command.Expr, string>, Unit, string, string, string>("%A")
             );
         }
 
-        public static string FormatEquation(CalcCommand.Equation eq)
+        public static string FormatEquation(Ast.Command.Expr eq)
         {
             return _formatter.Invoke(eq);
         }

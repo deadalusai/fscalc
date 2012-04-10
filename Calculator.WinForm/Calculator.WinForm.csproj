@@ -77,9 +77,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Calculator.Engine\Calculator.Engine.fsproj">
-      <Project>{B9DB81E7-1415-4B30-8B05-E19EBCE2324F}</Project>
-      <Name>Calculator.Engine</Name>
+    <ProjectReference Include="..\Calculator.Engine.FParsec\Calculator.Engine.FParsec.fsproj">
+      <Project>{B42F17F3-F555-4346-8E36-C36531810678}</Project>
+      <Name>Calculator.Engine.FParsec</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
