@@ -35,16 +35,11 @@ module Main =
     
     let runFile (fname:string) =
         try
-             let rec runner (lines:string list) =
-                match lines with
-                | [] -> ()
-                | line::tail ->
-                    let line = line.Trim()
-                    //ignore whitespace and comment lines
-                    if (line.Length > 0 && not (line.StartsWith("#"))) then
-                        runEquation line
-                    runner tail
-             runner (File.ReadAllLines(fname) |> Seq.toList)   
+            use reader = new StreamReader (File.OpenRead fname)
+            while not reader.EndOfStream do
+                let line = reader.ReadLine().Trim()
+                if line.Length > 0 && not (line.StartsWith "#") then
+                    runEquation line
         with ex ->
             printerr ex.Message
 
