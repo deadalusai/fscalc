@@ -28,10 +28,14 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 //parse a float (constant) or variable (name) and convert it to a Term expression 
 let pterm = ((pfloat |>> Constant) <|> (pname |>> Variable)) |>> Term
 
+let private betweenBrackets p =
+    between (str_ws "(") (str_ws ")") p
+
 //parse any supported functions
 let private createFunctionParser name fn =
-    pstring name >>? ws1 >>? pexpr |>> fn |>> Function
-
+    //functions apply to the next term parsed, or any bracketed expression
+    str_ws name >>? (pterm <|> betweenBrackets pexpr) |>> fn |>> Function
+    
 let private psin  = createFunctionParser "sin"  (fun expr -> Sin expr)
 let private pcos  = createFunctionParser "cos"  (fun expr -> Cos expr)
 let private ptan  = createFunctionParser "tan"  (fun expr -> Tan expr)
@@ -42,22 +46,22 @@ let pfunction = psqrt <|> psin <|> pcos <|> ptan
 //parse an assignment command
 // let Name = Expr
 let passignment = 
-    let binding' = (pname .>> ws .>> str_ws "=") .>>. pexpr .>> ws |>> Assignment
-    let manyBindings' = sepBy1 binding' (str_ws ",")
-    str_ws1 "let" >>. manyBindings' |>> Update
+    let binding = (pname .>> ws .>> str_ws "=") .>>. pexpr |>> Assignment
+    let manyBindings = sepBy1 binding (str_ws ",")
+    str_ws1 "let" >>. manyBindings |>> Update
 
 //parse a deletion command
 // del Name
 let pdeletion = 
-    let name' = (pname .>> ws |>> Deletion)
-    let manyNames' = sepBy1 name' (str_ws ",")
-    str_ws1 "del" >>. manyNames' |>> Update
+    let name = (pname |>> Deletion)
+    let manyNames = sepBy1 name (str_ws ",")
+    str_ws1 "del" >>. manyNames |>> Update
 
 //implement the pexpr parser
 do pexprRef :=
     let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
     let expr = opp.ExpressionParser
-    opp.TermParser <- (pfunction .>> ws) <|> (pterm .>> ws) <|> between (str_ws "(") (str_ws ")") expr
+    opp.TermParser <- (pfunction .>> ws) <|> (pterm .>> ws) <|> betweenBrackets expr
     //BEDMAS
     opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Subtract (x, y)))
     opp.AddOperator(InfixOperator("+", ws, 2, Associativity.Left, fun x y -> Add (x, y)))
