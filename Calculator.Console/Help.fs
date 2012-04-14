@@ -55,8 +55,6 @@ Each line is interpreted as one equation
     > read C:\path\to\file.txt
 
 Type 'print' to print out the variables in memory
-Type 'debug on|off' to enable/disable debug mode
-Type 'debug' to see the current debug mode
 Type 'cls' or 'clear' to clear the screen
 Type 'q' or 'exit' to quit
 Type '?' or 'help' to see this help text"

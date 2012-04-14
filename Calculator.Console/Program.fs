@@ -2,34 +2,51 @@
 
 open System
 open System.IO
+open System.Collections.Generic
 open Calculator.Ast
 open Calculator.Implementation
 open Calculator.Console.CommandHelpers
 
-//some defaults..
-let defaults = Map.empty
-                  .Add ("pi", 3.14159)
+let memory = new Dictionary<string, double> (Map.ofList [ ("pi", 3.14159) ])
 
-//set up CalcState
-let calcState = initCalcState defaults
+let getVar (key:string) =
+    if not (memory.ContainsKey key) then
+        failwith (sprintf "Variable %s does not exist" key)
+    memory.[key]
+
+let setVar (key:string) (value:double) =
+    match key with
+    | "_" -> printfn "= %g" value
+    | key -> printfn "%s = %g" key value
+    memory.[key] <- value
+
+let removeVar (key:string) =
+    match key with
+    | "_" -> failwith "_ is a protected variable name"
+    | key -> 
+        if not (memory.ContainsKey key) then
+            failwith (sprintf "Variable %s does not exist" key)
+        memory.Remove key |> ignore
+
+let printVariables () =
+    for key in memory.Keys |> Seq.sortBy (fun key -> key) do
+        if not (key = "_") then
+            printfn "%5s -> %g" key memory.[key]
 
 let printErr message =
     fprintfn System.Console.Error "ERROR: %s" message
+
+let host = { new IStateHost with 
+                member this.SetVar k v = setVar k v
+                member this.GetVar k = getVar k
+                member this.RemoveVar k = removeVar k }
 
 let runEquation (line:string) =
     try
         let parseResult = (parseLine line)
         match parseResult with
         | Error msg -> printErr msg
-        | Command command ->
-            let eachResult = (executeCommand calcState command)
-            let printResult commandResult =
-                match commandResult with
-                | EvalResult result -> printfn "= %g" result
-                | DeletionResult name -> printfn "deleted %s" name
-                | AssignmentResult (name, result) -> printfn "%s = %g" name result
-            //for each result, print to the output
-            eachResult printResult
+        | Command command -> executeCommand host command
     with ex ->
         printErr ex.Message
     
@@ -43,32 +60,6 @@ let runFile (fname:string) =
     with ex ->
         printErr ex.Message
 
-let processCommand command = 
-    match command with
-    //exit condition
-    | Exit -> exit 0
-    //show help
-    | Help -> Help.write ()
-    //clear screen
-    | ClearScreen -> try Console.Clear() with ex -> ()
-    //read from file
-    | ReadFile (fname) -> runFile fname
-    //control debug mode
-    | Debug (setting) ->
-        match setting with 
-        | "on"  -> calcState.debugMode <- true
-        | "off" -> calcState.debugMode <- false
-        | null  -> ()
-        | _     -> printErr (sprintf "unknown debug switch '%s'" setting)
-        printfn "debug mode %s" (if calcState.debugMode then "on" else "off")
-    //read variables
-    | PrintVariables ->
-        for key in calcState.memory.Keys |> Seq.sortBy (fun key -> key) do
-            if not (key = "_") then
-                printfn "%5s -> %g" key calcState.memory.[key]
-    //evaluate as an equation!
-    | EquationCommand (equation) -> runEquation equation
-
 //start the main loop
 printfn "Calculator - type '?' for help, 'q' to quit"
 while true do
@@ -77,6 +68,11 @@ while true do
     //no input - continue
     | "" -> ()
     //a calculator command - process
-    | commandString -> 
-        let command = (createCommand commandString)
-        processCommand command
+    | commandString ->
+        match (Command.create commandString) with
+        | Exit -> exit 0
+        | Help -> Help.write ()
+        | ClearScreen -> try Console.Clear() with ex -> ()
+        | ReadFile (fname) -> runFile fname
+        | PrintVariables -> printVariables ()
+        | EquationCommand (equation) -> runEquation equation

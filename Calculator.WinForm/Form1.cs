@@ -3,55 +3,20 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Windows.Forms;
 using Calculator;
-using Microsoft.FSharp.Core;
 
 namespace WinFormsCalculator
 {
-    public partial class Form1 : Form
+    public partial class Form1 : Form, Implementation.IStateHost
     {
-        private static Engine.CalcState _state;
-
+        private readonly Dictionary<string, double> _memory;
+        
         public Form1()
         {
-            InitializeComponent();
-
-            var defaults = new Dictionary<string, Double>() {
+            InitializeComponent(); 
+            
+            _memory = new Dictionary<string, Double>() {
                 { "pi", 3.14159 }
             };
-
-            _state = Implementation.initCalcState(defaults);
-        }
-
-        private Unit OnCommandResult(Implementation.CommandResult commandResult)
-        {
-            //render to the user
-            if (commandResult.IsEvalResult)
-            {
-                var evalResult = ((Implementation.CommandResult.EvalResult)commandResult);
-
-                textBox2.AppendText("= ");
-                textBox2.AppendText(evalResult.Item.ToString(CultureInfo.InvariantCulture));
-                textBox2.AppendText(Environment.NewLine);
-            }
-            else if (commandResult.IsAssignmentResult)
-            {
-                var assignmentResult = ((Implementation.CommandResult.AssignmentResult)commandResult);
-
-                textBox2.AppendText(assignmentResult.Item1);
-                textBox2.AppendText(" = ");
-                textBox2.AppendText(assignmentResult.Item2.ToString(CultureInfo.InvariantCulture));
-                textBox2.AppendText(Environment.NewLine);
-            }
-            else if (commandResult.IsDeletionResult)
-            {
-                var deletionResult = ((Implementation.CommandResult.DeletionResult)commandResult);
-
-                textBox2.AppendText(deletionResult.Item);
-                textBox2.AppendText(" deleted");
-                textBox2.AppendText(Environment.NewLine);
-            }
-
-            return null;
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -70,10 +35,8 @@ namespace WinFormsCalculator
                 {
                     var command = ((Implementation.ParseResult.Command)result).Item;
 
-                    var callback = FSharpFunc<Implementation.CommandResult, Unit>.FromConverter(OnCommandResult);
-
                     //try execute the command against the _state
-                    Implementation.executeCommand(_state, command, callback);
+                    Implementation.executeCommand(this, command);
                 }
             }
             catch (Exception ex)
@@ -82,6 +45,35 @@ namespace WinFormsCalculator
             }
 
             textBox1.Clear();
+        }
+
+        public double GetVar(string key)
+        {
+            double value;
+            if (_memory.TryGetValue(key, out value))
+                return value;
+
+            throw new KeyNotFoundException("Variable " + key + " does not exist");
+        }
+
+        public void RemoveVar(string key)
+        {
+            if (_memory.ContainsKey(key))
+                _memory.Remove(key);
+
+            throw new KeyNotFoundException("Variable " + key + " does not exist");
+        }
+
+        public void SetVar(string key, double value)
+        {
+            _memory[key] = value;
+
+            if (key != "_")
+                textBox2.AppendText(key + " ");
+
+            textBox2.AppendText("= ");
+            textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
+            textBox2.AppendText(Environment.NewLine);
         }
     }
 }

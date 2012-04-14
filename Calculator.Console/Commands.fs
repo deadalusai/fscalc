@@ -1,17 +1,7 @@
 ﻿module Calculator.Console.CommandHelpers
 
-type Command =
-| Exit
-| Help
-| ClearScreen
-| PrintVariables
-| Debug of string
-| ReadFile of string
-| EquationCommand of string
+type private InputPair = { Name : string; Args : string }
 
-type private InputPair = 
-    { Name : string; Args : string }
-            
 let private whitespace = [| ' '; '\t' |]
 
 let private createInputPair (str:string) = 
@@ -22,16 +12,23 @@ let private createInputPair (str:string) =
         { Name = str; Args = null }
     else
         { Name = str.Substring(0, idx);
-          Args = str.Substring(idx).Trim(); }
+            Args = str.Substring(idx).Trim(); }
 
-let createCommand (command:string) =
-    let input = (createInputPair command)
-    match input.Name with
-    | "q"   | "exit"  -> Exit
-    | "?"   | "help"  -> Help
-    | "cls" | "clear" -> ClearScreen
-    | "read"          -> ReadFile (input.Args)
-    | "debug"         -> Debug (input.Args)
-    | "print"         -> PrintVariables
-    //unknown - assume it's an equation
-    | _               -> EquationCommand (command)
+type Command =
+| Exit
+| Help
+| ClearScreen
+| PrintVariables
+| ReadFile of string
+| EquationCommand of string
+
+    static member create (command:string) =
+        let input = (createInputPair command)
+        match input.Name with
+        | "q"   | "exit"  -> Exit
+        | "?"   | "help"  -> Help
+        | "cls" | "clear" -> ClearScreen
+        | "read"          -> ReadFile (input.Args)
+        | "print"         -> PrintVariables
+        //unknown - assume it's an equation
+        | _               -> EquationCommand (command)    

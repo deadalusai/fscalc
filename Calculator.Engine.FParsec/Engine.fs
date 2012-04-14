@@ -5,12 +5,6 @@ open FParsec.Primitives
 open FParsec.CharParsers
 open Calculator.Ast
 
-/// Maintains "memory" state for a calculator
-type CalcState =
-    { memory: System.Collections.Generic.IDictionary<string, double>;
-      mutable debugOutput: System.IO.TextWriter;
-      mutable debugMode: bool }
-
 let private ws = spaces
 let private ws1 = spaces1
 let private str_ws s = skipString s >>? ws
