@@ -19,20 +19,9 @@ let pname =
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
 let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
-let pterm, private ptermRef = createParserForwardedToRef<Expr, _> ()
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
-//also parses negative (constants, variables or bracketed expression)
-do ptermRef :=
-    let pconstant = pfloat |>> Constant
-    let pvariable = pname |>> Variable
-    //parseNegative counts '-' symbols to decide whether this expression will be interpreted as negative (equal -'s cancel out)
-    let pnegative =
-        let negSymbols = (many1Chars (pchar '-')) 
-        let expression = (pterm <|> betweenBrackets pexpr)
-        pipe2 negSymbols expression (fun s e -> if s.Length % 2 = 0 then e else Negative e)
-
-    pnegative <|> (pconstant <|> pvariable |>> Term)
+let pterm = (pfloat |>> Constant) <|> (pname |>> Variable) |>> Term
 
 //parse any supported functions
 let private createFunctionParser name fn =
@@ -62,9 +51,16 @@ let pdeletion =
 
 //implement the pexpr parser
 do pexprRef :=
+    //attempts to parse a "negative" expression
+    //expression can be any term or bracketed expression
+    let pnegative =
+        let negSymbols = (many1Chars (pchar '-')) 
+        let expression = (pterm <|> betweenBrackets pexpr)
+        pipe2 negSymbols expression (fun s e -> if s.Length % 2 = 0 then e else Negative e)
+
     let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
     let expr = opp.ExpressionParser
-    opp.TermParser <- (pfunction .>> ws) <|> (pterm .>> ws) <|> betweenBrackets expr
+    opp.TermParser <- pnegative <|> (pfunction .>> ws) <|> (pterm .>> ws) <|> betweenBrackets expr
     //BEDMAS
     opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Subtract (x, y)))
     opp.AddOperator(InfixOperator("+", ws, 2, Associativity.Left, fun x y -> Add (x, y)))
@@ -72,7 +68,7 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("/", ws, 4, Associativity.Left, fun x y -> Divide (x, y)))
     opp.AddOperator(InfixOperator("^", ws, 5, Associativity.Left, fun x y -> Power (x, y)))
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
-    expr <?> "expression"
+    expr //<?> "expression"
 
 let pcommand_eof = (passignment <|> pdeletion <|> (pexpr |>> Expr)) .>> eof
 
