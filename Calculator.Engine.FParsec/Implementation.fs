@@ -36,14 +36,15 @@ let rec evalExpr (s:IStateHost) (expr:Expr) =
     | Power (l, r) -> Math.Pow(evalExpr s l, evalExpr s r)
     | Modulo (l, r) -> (evalExpr s l) % (evalExpr s r)
     | Negative e -> -1.0 * (evalExpr s e)
-    | Function f -> evalFunction s f
+    | Function (name, e) -> evalFunction s name e
         
-and evalFunction (s:IStateHost) (fn:Function) =
-    match fn with
-    | Sin e -> Math.Sin(evalExpr s e)
-    | Cos e -> Math.Cos(evalExpr s e)
-    | Tan e -> Math.Tan(evalExpr s e)
-    | Sqrt e -> Math.Sqrt(evalExpr s e)
+and evalFunction (s:IStateHost) (name:string) (e:Expr) =
+    match name with
+    | "sin"  -> Math.Sin(evalExpr s e)
+    | "cos"  -> Math.Cos(evalExpr s e)
+    | "tan"  -> Math.Tan(evalExpr s e)
+    | "sqrt" -> Math.Sqrt(evalExpr s e)
+    | _ -> failwith (sprintf "Function %s not defined" name)
 
 and evalTerm (s:IStateHost) (term:Term) =
     match term with

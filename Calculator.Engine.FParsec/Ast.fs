@@ -11,7 +11,7 @@ and Expr =
 //Simple term (constant or variable)
 | Term      of Term
 //Single-parameter function
-| Function  of Function
+| Function  of string * Expr
 //BEDMAS operators
 | Add       of Expr * Expr
 | Multiply  of Expr * Expr
@@ -21,13 +21,6 @@ and Expr =
 | Modulo    of Expr * Expr
 //Inverters
 | Negative  of Expr
-
-and Function =
-//Single parameter function definitions
-| Sqrt of Expr
-| Sin  of Expr
-| Cos  of Expr
-| Tan  of Expr
 
 and Command =
 | Expr of Expr

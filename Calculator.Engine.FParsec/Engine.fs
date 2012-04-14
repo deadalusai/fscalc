@@ -1,5 +1,6 @@
 ﻿module Calculator.Engine
 
+open System.Text.RegularExpressions
 open FParsec
 open FParsec.Primitives
 open FParsec.CharParsers
@@ -9,58 +10,68 @@ let private ws = spaces
 let private ws1 = spaces1
 let private str_ws s = skipString s >>? ws
 let private str_ws1 s = skipString s >>? ws1
-let private betweenBrackets p = between (str_ws "(") (str_ws ")") p
+let private ws_str_ws s = ws >>. skipString s .>> ws
+let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 
 //matches variable "names" like the following regex: [a-z_][a-z_0-9]*
-let pname =
-    let isAsciiLetterOrUnderscore c = isAsciiLetter c || isAnyOf "_" c
-    let isAsciiLetterOrUnderscoreOrDigit c = isAsciiLetterOrUnderscore c || isDigit c
-    many1Satisfy2L isAsciiLetterOrUnderscore isAsciiLetterOrUnderscoreOrDigit "variable name" |>> Name
+let pname : Parser<Name, unit> =
+    let nameChar1 c = isAsciiLetter c || isAnyOf "_" c
+    let nameChar c = nameChar1 c || isDigit c
+    //many1Satisfy2L nameChar1 nameChar "variable name" |>> Name
+    let protectedRegex = new Regex("\\As(in|qrt)|cos|tan|_|let|del", RegexOptions.Multiline ||| RegexOptions.ExplicitCapture);
+
+    fun stream ->
+        let token = stream.IndexToken
+        let str = stream.ReadCharsOrNewlinesWhile(nameChar1, nameChar, true)
+        if str.Length > 0 then 
+            let m = protectedRegex.Match(str)
+            if m.Success then 
+                stream.Seek(token)
+                Reply(Error, messageError (sprintf "%s is a protected name" m.Value))
+            else Reply(Name(str))
+        else Reply(Error, expected "variable name")
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
-let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
+let pexpr, private pexprRef = createParserForwardedToRef<Expr, unit> ()
+
+//parses any expression surrounded with brackets
+let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
 let pterm = (pfloat |>> Constant) <|> (pname |>> Variable) |>> Term
 
 //parse any supported functions
-let private createFunctionParser name fn =
-    //functions apply to the next term parsed, or any bracketed expression
-    str_ws name >>? (pterm <|> betweenBrackets pexpr) |>> fn |>> Function
-    
-let private psin  = createFunctionParser "sin"  (fun expr -> Sin expr)
-let private pcos  = createFunctionParser "cos"  (fun expr -> Cos expr)
-let private ptan  = createFunctionParser "tan"  (fun expr -> Tan expr)
-let private psqrt = createFunctionParser "sqrt" (fun expr -> Sqrt expr)
-
-let pfunction = psqrt <|> psin <|> pcos <|> ptan
+let pfunction =
+    let fname = (regexL "s(in|qrt)|cos|tan" "function name")
+    let args = (ws1 >>? pterm) <|> pbracketedExpr
+    pipe2 fname args (fun name e -> Function (name, e))
     
 //parse an assignment command
-// let Name = Expr
+// let Name = Expr [, Name2 = Expr2]
 let passignment = 
-    let binding = (pname .>> ws .>> str_ws "=") .>>. pexpr |>> Assignment
-    let manyBindings = sepBy1 binding (str_ws ",")
-    str_ws1 "let" >>. manyBindings |>> Update
+    let binding = (pname .>> ws_str_ws "=") .>>. pexpr |>> Assignment
+    let manyBindings = sepBy1 binding (ws_str_ws ",")
+    str_ws1 "let" >>. manyBindings <?> "variable binding"
 
 //parse a deletion command
-// del Name
+// del Name [, Name2]
 let pdeletion = 
     let name = (pname |>> Deletion)
-    let manyNames = sepBy1 name (str_ws ",")
-    str_ws1 "del" >>. manyNames |>> Update
+    let manyNames = sepBy1 name (ws_str_ws ",")
+    str_ws1 "del" >>. manyNames <?> "variable deletion"
+    
+//attempts to parse a "negative" expression
+//expression can be any term or bracketed expression
+let pnegativeExpr =
+    let negSymbols = (many1Chars (pchar '-')) 
+    let expression = (pterm <|> pbracketedExpr)
+    pipe2 negSymbols expression (fun s e -> if s.Length % 2 = 0 then e else Negative e) <?> "negative expression"
 
 //implement the pexpr parser
 do pexprRef :=
-    //attempts to parse a "negative" expression
-    //expression can be any term or bracketed expression
-    let pnegative =
-        let negSymbols = (many1Chars (pchar '-')) 
-        let expression = (pterm <|> betweenBrackets pexpr)
-        pipe2 negSymbols expression (fun s e -> if s.Length % 2 = 0 then e else Negative e)
-
     let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
     let expr = opp.ExpressionParser
-    opp.TermParser <- pnegative <|> (pfunction .>> ws) <|> (pterm .>> ws) <|> betweenBrackets expr
+    opp.TermParser <- (pfunction <|> pterm <|> pnegativeExpr <|> pbracketedExpr) .>> ws
     //BEDMAS
     opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Subtract (x, y)))
     opp.AddOperator(InfixOperator("+", ws, 2, Associativity.Left, fun x y -> Add (x, y)))
@@ -68,8 +79,6 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("/", ws, 4, Associativity.Left, fun x y -> Divide (x, y)))
     opp.AddOperator(InfixOperator("^", ws, 5, Associativity.Left, fun x y -> Power (x, y)))
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
-    expr //<?> "expression"
+    expr
 
-let pcommand_eof = (passignment <|> pdeletion <|> (pexpr |>> Expr)) .>> eof
-
-    
+let pcommand_eof = ((passignment |>> Update) <|> (pdeletion |>> Update) <|> (pexpr |>> Expr)).>> eof
