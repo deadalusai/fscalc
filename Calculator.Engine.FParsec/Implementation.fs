@@ -35,6 +35,7 @@ let rec evalExpr (s:IStateHost) (expr:Expr) =
     | Divide (l, r) -> (evalExpr s l) / (evalExpr s r)
     | Power (l, r) -> Math.Pow(evalExpr s l, evalExpr s r)
     | Modulo (l, r) -> (evalExpr s l) % (evalExpr s r)
+    | Negative e -> -1.0 * (evalExpr s e)
     | Function f -> evalFunction s f
         
 and evalFunction (s:IStateHost) (fn:Function) =

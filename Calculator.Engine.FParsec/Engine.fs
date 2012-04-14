@@ -9,6 +9,7 @@ let private ws = spaces
 let private ws1 = spaces1
 let private str_ws s = skipString s >>? ws
 let private str_ws1 s = skipString s >>? ws1
+let private betweenBrackets p = between (str_ws "(") (str_ws ")") p
 
 //matches variable "names" like the following regex: [a-z_][a-z_0-9]*
 let pname =
@@ -18,12 +19,20 @@ let pname =
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
 let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
+let pterm, private ptermRef = createParserForwardedToRef<Expr, _> ()
 
-//parse a float (constant) or variable (name) and convert it to a Term expression 
-let pterm = ((pfloat |>> Constant) <|> (pname |>> Variable)) |>> Term
+//parse a float (constant) or variable (name) and convert it to a Term expression
+//also parses negative (constants, variables or bracketed expression)
+do ptermRef :=
+    let pconstant = pfloat |>> Constant
+    let pvariable = pname |>> Variable
+    //parseNegative counts '-' symbols to decide whether this expression will be interpreted as negative (equal -'s cancel out)
+    let pnegative =
+        let negSymbols = (many1Chars (pchar '-')) 
+        let expression = (pterm <|> betweenBrackets pexpr)
+        pipe2 negSymbols expression (fun s e -> if s.Length % 2 = 0 then e else Negative e)
 
-let private betweenBrackets p =
-    between (str_ws "(") (str_ws ")") p
+    pnegative <|> (pconstant <|> pvariable |>> Term)
 
 //parse any supported functions
 let private createFunctionParser name fn =

@@ -46,7 +46,9 @@ let runEquation (line:string) =
         let parseResult = (parseLine line)
         match parseResult with
         | Error msg -> printErr msg
-        | Command command -> executeCommand host command
+        | Command command -> 
+            printfn "Command: %A" command
+            executeCommand host command
     with ex ->
         printErr ex.Message
     
@@ -73,6 +75,6 @@ while true do
         | Exit -> exit 0
         | Help -> Help.write ()
         | ClearScreen -> try Console.Clear() with ex -> ()
-        | ReadFile (fname) -> runFile fname
+        | ReadFile fname -> runFile fname
         | PrintVariables -> printVariables ()
-        | EquationCommand (equation) -> runEquation equation
+        | EquationCommand equation -> runEquation equation

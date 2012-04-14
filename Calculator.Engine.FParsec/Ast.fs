@@ -19,6 +19,8 @@ and Expr =
 | Divide    of Expr * Expr
 | Power     of Expr * Expr
 | Modulo    of Expr * Expr
+//Inverters
+| Negative  of Expr
 
 and Function =
 //Single parameter function definitions
