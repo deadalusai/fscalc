@@ -47,7 +47,7 @@ namespace WinFormsCalculator
             textBox1.Clear();
         }
 
-        public double GetVar(string key)
+        public double GetVariable(string key)
         {
             double value;
             if (_memory.TryGetValue(key, out value))
@@ -56,7 +56,7 @@ namespace WinFormsCalculator
             throw new KeyNotFoundException("Variable " + key + " does not exist");
         }
 
-        public void RemoveVar(string key)
+        public void ClearVariable(string key)
         {
             if (_memory.ContainsKey(key))
                 _memory.Remove(key);
@@ -64,7 +64,7 @@ namespace WinFormsCalculator
             throw new KeyNotFoundException("Variable " + key + " does not exist");
         }
 
-        public void SetVar(string key, double value)
+        public void SetVariable(string key, double value)
         {
             _memory[key] = value;
 
@@ -74,6 +74,20 @@ namespace WinFormsCalculator
             textBox2.AppendText("= ");
             textBox2.AppendText(value.ToString(CultureInfo.InvariantCulture));
             textBox2.AppendText(Environment.NewLine);
+        }
+
+
+        public double InvokeFunction(string name, double value)
+        {
+            switch (name)
+            {
+                case "sin": return Math.Sin(value);
+                case "cos": return Math.Cos(value);
+                case "tan": return Math.Tan(value);
+                case "sqrt": return Math.Sqrt(value);
+            }
+
+            throw new InvalidOperationException("Function not implemented: " + name);
         }
     }
 }

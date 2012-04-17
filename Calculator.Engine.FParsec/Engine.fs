@@ -17,19 +17,7 @@ let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 let pname : Parser<Name, unit> =
     let nameChar1 c = isAsciiLetter c || isAnyOf "_" c
     let nameChar c = nameChar1 c || isDigit c
-    //many1Satisfy2L nameChar1 nameChar "variable name" |>> Name
-    let protectedRegex = new Regex("\\As(in|qrt)|cos|tan|_|let|del", RegexOptions.Multiline ||| RegexOptions.ExplicitCapture);
-
-    fun stream ->
-        let token = stream.IndexToken
-        let str = stream.ReadCharsOrNewlinesWhile(nameChar1, nameChar, true)
-        if str.Length > 0 then 
-            let m = protectedRegex.Match(str)
-            if m.Success then 
-                stream.Seek(token)
-                Reply(Error, messageError (sprintf "%s is a protected name" m.Value))
-            else Reply(Name(str))
-        else Reply(Error, expected "variable name")
+    many1Satisfy2L nameChar1 nameChar "variable name" |>> Name
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
 let pexpr, private pexprRef = createParserForwardedToRef<Expr, unit> ()
@@ -38,13 +26,12 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, unit> ()
 let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
-let pterm = (pfloat |>> Constant) <|> (pname |>> Variable) |>> Term
+let pterm = (pfloat |>> Constant <?> "constant") <|> (pname |>> Variable <?> "variable name") |>> Term
 
 //parse any supported functions
 let pfunction =
-    let fname = (regexL "s(in|qrt)|cos|tan" "function name")
     let args = (ws1 >>? pterm) <|> pbracketedExpr
-    pipe2 fname args (fun name e -> Function (name, e))
+    pname .>>.? args |>> FunctionCall <?> "function call"
     
 //parse an assignment command
 // let Name = Expr [, Name2 = Expr2]

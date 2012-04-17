@@ -56,5 +56,7 @@ Each line is interpreted as one equation
 
 Type 'print' to print out the variables in memory
 Type 'cls' or 'clear' to clear the screen
+Type 'debug on|off' to turn debugging on or off
+Type 'debug' to see the current debugging status
 Type 'q' or 'exit' to quit
 Type '?' or 'help' to see this help text"

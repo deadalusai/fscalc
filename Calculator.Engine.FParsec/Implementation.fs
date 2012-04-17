@@ -11,9 +11,10 @@ open Calculator.Engine
 
 type IStateHost =
     interface
-       abstract member GetVar : key:string -> double
-       abstract member SetVar : key:string -> double -> unit
-       abstract member RemoveVar : key:string -> unit
+       abstract member GetVariable : key:string -> double
+       abstract member SetVariable : key:string -> double -> unit
+       abstract member ClearVariable : key:string -> unit
+       abstract member InvokeFunction : name:string -> double -> double
     end
 
 type ParseResult =
@@ -36,15 +37,10 @@ let rec evalExpr (s:IStateHost) (expr:Expr) =
     | Power (l, r) -> Math.Pow(evalExpr s l, evalExpr s r)
     | Modulo (l, r) -> (evalExpr s l) % (evalExpr s r)
     | Negative e -> -1.0 * (evalExpr s e)
-    | Function (name, e) -> evalFunction s name e
+    | FunctionCall (name, e) -> evalFunction s name e
         
-and evalFunction (s:IStateHost) (name:string) (e:Expr) =
-    match name with
-    | "sin"  -> Math.Sin(evalExpr s e)
-    | "cos"  -> Math.Cos(evalExpr s e)
-    | "tan"  -> Math.Tan(evalExpr s e)
-    | "sqrt" -> Math.Sqrt(evalExpr s e)
-    | _ -> failwith (sprintf "Function %s not defined" name)
+and evalFunction (s:IStateHost) (name:Name) (e:Expr) =
+    s.InvokeFunction (evalName name) (evalExpr s e)
 
 and evalTerm (s:IStateHost) (term:Term) =
     match term with
@@ -54,16 +50,14 @@ and evalTerm (s:IStateHost) (term:Term) =
 and evalName (name:Name) = match name with Name n -> n
 
 and evalVariable (s:IStateHost) (name:Name) =
-    s.GetVar(evalName name)
-    //if not (s.memory.ContainsKey name) then failwith (sprintf "variable %s does not exist" name)
-    //else s.memory.[name]
-
+    s.GetVariable(evalName name)
+    
 /// Execute a command
 let executeCommand (s:IStateHost) (eq:Command) =
     match eq with
     | Expr expr -> 
         let result = (evalExpr s expr)
-        s.SetVar "_" result
+        s.SetVariable "_" result
         
     | Update list ->
         //iterate through each update command, apply it and yield a result
@@ -72,9 +66,9 @@ let executeCommand (s:IStateHost) (eq:Command) =
             | Assignment (name, expr) -> 
                 let name = (evalName name)
                 let result = (evalExpr s expr)
-                s.SetVar name result
+                s.SetVariable name result
 
             | Deletion (name) ->
                 (evalVariable s name) |> ignore //checks to make sure the variable exists
                 let name = (evalName name)
-                s.RemoveVar name
+                s.ClearVariable name

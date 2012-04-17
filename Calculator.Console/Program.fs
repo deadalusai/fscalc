@@ -8,6 +8,7 @@ open Calculator.Implementation
 open Calculator.Console.CommandHelpers
 
 let memory = new Dictionary<string, double> (Map.ofList [ ("pi", 3.14159) ])
+let mutable debug = false
 
 let getVar (key:string) =
     if not (memory.ContainsKey key) then
@@ -20,13 +21,22 @@ let setVar (key:string) (value:double) =
     | key -> printfn "%s = %g" key value
     memory.[key] <- value
 
-let removeVar (key:string) =
+let clearVar (key:string) =
     match key with
     | "_" -> failwith "_ is a protected variable name"
     | key -> 
         if not (memory.ContainsKey key) then
             failwith (sprintf "Variable %s does not exist" key)
         memory.Remove key |> ignore
+
+let invokeFunction (name:string) (arg:double) =
+    match name with
+    | "sin"  -> Math.Sin(arg)
+    | "cos"  -> Math.Cos(arg)
+    | "tan"  -> Math.Tan(arg)
+    | "sqrt" -> Math.Sqrt(arg)
+    | _ -> failwith (sprintf "Function %s not defined" name)
+
 
 let printVariables () =
     for key in memory.Keys |> Seq.sortBy (fun key -> key) do
@@ -37,9 +47,10 @@ let printErr message =
     fprintfn System.Console.Error "ERROR: %s" message
 
 let host = { new IStateHost with 
-                member this.SetVar k v = setVar k v
-                member this.GetVar k = getVar k
-                member this.RemoveVar k = removeVar k }
+             member this.SetVariable k v = setVar k v
+             member this.GetVariable k = getVar k
+             member this.ClearVariable k = clearVar k
+             member this.InvokeFunction n a = invokeFunction n a }
 
 let runEquation (line:string) =
     try
@@ -47,7 +58,7 @@ let runEquation (line:string) =
         match parseResult with
         | Error msg -> printErr msg
         | Command command -> 
-            printfn "Command: %A" command
+            if debug then printfn "Command: %A" command
             executeCommand host command
     with ex ->
         printErr ex.Message
@@ -77,4 +88,10 @@ while true do
         | ClearScreen -> try Console.Clear() with ex -> ()
         | ReadFile fname -> runFile fname
         | PrintVariables -> printVariables ()
+        | Debug arg ->
+            match arg with
+            | "on"  -> debug <- true
+            | "off" -> debug <- false
+            | null  -> printfn "Debug mode %s" (if debug then "enabled" else "disabled")
+            | _     -> printfn "Invalid argument: %s" arg
         | EquationCommand equation -> runEquation equation

@@ -20,6 +20,7 @@ type Command =
 | ClearScreen
 | PrintVariables
 | ReadFile of string
+| Debug of string
 | EquationCommand of string
 
     static member create (command:string) =
@@ -30,5 +31,6 @@ type Command =
         | "cls" | "clear" -> ClearScreen
         | "read"          -> ReadFile (input.Args)
         | "print"         -> PrintVariables
+        | "debug"         -> Debug (input.Args)
         //unknown - assume it's an equation
         | _               -> EquationCommand (command)    
