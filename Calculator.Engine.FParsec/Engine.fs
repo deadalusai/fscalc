@@ -13,14 +13,10 @@ let private str_ws1 s = skipString s >>? ws1
 let private ws_str_ws s = ws >>. skipString s .>> ws
 let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 
-type ParserState = { functions : Set<string> }
+type ParserState = { Functions : Set<string> }
 
-//matches variable "names" like the following regex: [a-z_][a-z_0-9]*
-let private pname : Parser<string, _> =
-    let nameChar1 c = isAsciiLetter c || isAnyOf "_" c
-    let nameChar c = nameChar1 c || isDigit c
-
-    many1Satisfy2L nameChar1 nameChar "variable name"
+//matches "names"
+let private pname = regexL "[a-zA-Z_][a-zA-Z_0-9]*" "name"
 
 let pvariable = pname |>> (fun name -> { Key = name })
 
@@ -31,9 +27,9 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
-let pterm = (pfloat |>> Constant <?> "constant") <|> (pvariable |>> Variable <?> "variable name") |>> Term
+let pterm = (pfloat |>> Constant <?> "constant") <|> (pvariable |>> Variable <?> "variable")
 
-//parse any supported functions
+//parse any supported Functions
 let pfunction =
     let functionArguments = (ws1 >>? pterm) <|> pbracketedExpr
     let functionName: Parser<Name, ParserState> =
@@ -42,7 +38,7 @@ let pfunction =
             let reply = (pname stream)
             //if successful, assert that that name appears in the available function set
             if reply.Status = Ok then
-                if Set.contains reply.Result stream.UserState.functions then Reply({ Key = reply.Result })
+                if Set.contains reply.Result stream.UserState.Functions then Reply({ Key = reply.Result })
                 else Reply(Error, messageError "not a function name")
             //fail on error or missing function
             else Reply(Error, messageError "expected function name"))

@@ -1,15 +1,15 @@
 ﻿module Calculator.Ast
 
+[<StructuredFormatDisplay("{StructuredFormatDisplay}")>]
 type Name = { Key : string }
+    with 
+        member private t.StructuredFormatDisplay = t.Key
 
 //Any term of constant or variable value
-type Term =
-| Constant of double
-| Variable of Name
-
 and Expr =
 //Simple term (constant or variable)
-| Term          of Term
+| Constant      of double
+| Variable      of Name
 //Single-parameter function
 | FunctionCall  of Name * Expr
 //BEDMAS operators

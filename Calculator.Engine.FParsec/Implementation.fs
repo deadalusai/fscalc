@@ -20,7 +20,7 @@ type CommandResult =
 
 let private parserStateFrom state =
     let functionNames = Map.toSeq state.FunctionMap |> Seq.map (fun (key, value) -> key) |> Set.ofSeq
-    { functions = functionNames }
+    { Functions = functionNames }
 
 let parseLine state line =
     let parserState = parserStateFrom state
@@ -32,8 +32,12 @@ let parseLine state line =
 let rec evalExpr state expr =
     let evalExpr' = evalExpr state
     match expr with
+    //constants and variables
+    | Constant c -> c
+    | Variable n -> evalVariable state n
+    //functions
     | FunctionCall (name, e) -> evalFunction state name e
-    | Term t -> evalTerm state t
+    //operators
     | Add (l, r) -> (evalExpr' l) + (evalExpr' r)
     | Multiply (l, r) -> (evalExpr' l) * (evalExpr' r)
     | Subtract (l, r) -> (evalExpr' l) - (evalExpr' r)
@@ -46,12 +50,7 @@ and evalFunction state name expr =
     match (Map.tryFind name.Key state.FunctionMap) with
     | Some fn -> fn (evalExpr state expr)
     | None -> failwith (sprintf "Function %s not defined" name.Key)
-
-and evalTerm state term =
-    match term with
-    | Constant c -> c
-    | Variable n -> evalVariable state n
-
+    
 and evalVariable state name =
     match (Map.tryFind name.Key state.MemoryMap) with
     | Some v -> v
