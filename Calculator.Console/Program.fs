@@ -5,7 +5,7 @@ open Calculator.Implementation
 open Calculator.Console.CommandHelpers
 
 let printVariables (state:State) =
-    Map.toSeq state.memory |> 
+    Map.toSeq state.memoryMap |> 
     Seq.sortBy (fun (key, value) -> key) |>
     Seq.iter (fun (key, value) ->
                 if not (key = "_") then
@@ -14,8 +14,8 @@ let printVariables (state:State) =
 let printErr message =
     fprintfn System.Console.Error "ERROR: %s" message
 
-let runEquation (state:State) (line:string) =
-    let parseResult = (parseLine line)
+let runEquation state line =
+    let parseResult = (parseLine state line)
     match parseResult with
     | Error msg -> 
         printErr msg
@@ -90,7 +90,15 @@ let commands = seq {
         | commandString -> yield Command.create commandString 
 }
 
-let initialState = { memory = Map.ofList [ ("pi", 3.14159) ];
+let initialState = { memoryMap = Map.ofSeq (seq { 
+                        yield ("pi", 3.14159) 
+                     });
+                     functionMap = Map.ofSeq (seq {
+                        yield ("sin", (fun arg -> System.Math.Sin(arg)))
+                        yield ("cos", (fun arg -> System.Math.Cos(arg)))
+                        yield ("tan", (fun arg -> System.Math.Tan(arg)))
+                        yield ("sqrt", (fun arg -> System.Math.Sqrt(arg)))
+                     });
                      debug = false }
 
 //start the main loop

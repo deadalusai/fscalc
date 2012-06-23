@@ -6,7 +6,9 @@ open FParsec.CharParsers
 open Calculator.Ast
 open Calculator.Engine
 
-type State = { memory : Map<string, float>; debug: bool }
+type State = { memoryMap : Map<string, float>; 
+               functionMap : Map<string, (float -> float)>
+               debug: bool }
 
 type ParseResult =
 | Command of Command
@@ -18,8 +20,13 @@ type CommandResult =
 | ExpressionResult of State * float
 | UpdateResult of State * AssignmentResult list
 
-let parseLine line =
-    let parserResult = runParserOnString pcommand_eof () "Input" line
+let private parserStateFrom state =
+    let functionNames = Map.toSeq state.functionMap |> Seq.map (fun (key, value) -> key) |> Set.ofSeq
+    { functions = functionNames }
+
+let parseLine state line =
+    let parserState = parserStateFrom state
+    let parserResult = runParserOnString pcommand_eof parserState "Input" line
     match parserResult with
     | Success (expr, state, pos) -> Command expr
     | Failure (msg, err, state) -> Error msg
@@ -39,13 +46,9 @@ let rec evalExpr state expr =
         
 and evalFunction state name expr =
     let name = (evalName name)
-    let arg = (evalExpr state expr)
-    match name with
-    | "sin"  -> System.Math.Sin(arg)
-    | "cos"  -> System.Math.Cos(arg)
-    | "tan"  -> System.Math.Tan(arg)
-    | "sqrt" -> System.Math.Sqrt(arg)
-    | _ -> failwith (sprintf "Function %s not defined" name)
+    match (Map.tryFind name state.functionMap) with
+    | Some fn -> fn (evalExpr state expr)
+    | None -> failwith (sprintf "Function %s not defined" name)
 
 and evalTerm state term =
     match term with
@@ -56,14 +59,14 @@ and evalName name = match name with Name n -> n
 
 and evalVariable state name =
     let key = (evalName name)
-    match (Map.tryFind key state.memory) with
+    match (Map.tryFind key state.memoryMap) with
     | Some v -> v
     | None -> failwith (sprintf "Variable %s does not exist" key)
 
 /// Execute a command
 let executeCommand state command =
-    let setMem state key value = { state with memory = Map.add key value state.memory }
-    let clearMem state key = { state with memory = Map.remove key state.memory }
+    let setMem state key value = { state with memoryMap = Map.add key value state.memoryMap }
+    let clearMem state key = { state with memoryMap = Map.remove key state.memoryMap }
     
     match command with
     | Expr expr ->

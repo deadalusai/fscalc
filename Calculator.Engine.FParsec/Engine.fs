@@ -13,14 +13,17 @@ let private str_ws1 s = skipString s >>? ws1
 let private ws_str_ws s = ws >>. skipString s .>> ws
 let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 
+type ParserState = { functions : Set<string> }
+
 //matches variable "names" like the following regex: [a-z_][a-z_0-9]*
-let pname : Parser<Name, unit> =
+let pname : Parser<Name, ParserState> =
     let nameChar1 c = isAsciiLetter c || isAnyOf "_" c
     let nameChar c = nameChar1 c || isDigit c
+
     many1Satisfy2L nameChar1 nameChar "variable name" |>> Name
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
-let pexpr, private pexprRef = createParserForwardedToRef<Expr, unit> ()
+let pexpr, private pexprRef = createParserForwardedToRef<Expr, ParserState> ()
 
 //parses any expression surrounded with brackets
 let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
@@ -30,8 +33,19 @@ let pterm = (pfloat |>> Constant <?> "constant") <|> (pname |>> Variable <?> "va
 
 //parse any supported functions
 let pfunction =
-    let args = (ws1 >>? pterm) <|> pbracketedExpr
-    pname .>>.? args |>> FunctionCall <?> "function call"
+    let functionArguments = (ws1 >>? pterm) <|> pbracketedExpr
+    let functionName: Parser<Name, ParserState> =
+        //Attempt to parse a Name
+        let getResult result = match result with Name n -> n
+        (fun stream ->
+            let reply = (pname stream)
+            //if successful, assert that that name appears in the available function set
+            if reply.Status = Ok && Set.contains (getResult reply.Result) stream.UserState.functions then reply
+            //fail on error or missing function
+            else if reply.Status = Error then reply
+            else Reply(Error, messageError "expected function name"))
+
+    attempt (functionName .>>. functionArguments) |>> FunctionCall <?> "function call"
     
 //parse an assignment command
 // let Name = Expr [, Name2 = Expr2]
@@ -56,7 +70,7 @@ let pnegativeExpr =
 
 //implement the pexpr parser
 do pexprRef :=
-    let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
+    let opp = new OperatorPrecedenceParser<Expr, unit, ParserState> ()
     let expr = opp.ExpressionParser
     opp.TermParser <- (pfunction <|> pterm <|> pnegativeExpr <|> pbracketedExpr) .>> ws
     //BEDMAS
