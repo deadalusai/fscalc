@@ -1,11 +1,11 @@
 ﻿module Calculator.Ast
 
-type Name = Name of string
+type Name = { Key : string }
 
 //Any term of constant or variable value
-and Term =
+type Term =
 | Constant of double
-| Variable of Name 
+| Variable of Name
 
 and Expr =
 //Simple term (constant or variable)
@@ -23,12 +23,9 @@ and Expr =
 | Negative      of Expr
 
 and Command =
-| Expr of Expr
-//VarAssignment and VarDeletion ops are done en-mass
-| Update of Update list
+| Single of Expr
+//VarAssignment ops are done en-mass
+| Assignment of VariableAssignment list
 
-and Update =
 //Assignment of the result of the given expression to memory
-| Assignment of Name * Expr
-//Deletion of a previously assigned variable from memory
-| Deletion of Name
+and VariableAssignment = Name * Expr

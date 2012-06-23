@@ -16,33 +16,35 @@ let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 type ParserState = { functions : Set<string> }
 
 //matches variable "names" like the following regex: [a-z_][a-z_0-9]*
-let pname : Parser<Name, ParserState> =
+let private pname : Parser<string, _> =
     let nameChar1 c = isAsciiLetter c || isAnyOf "_" c
     let nameChar c = nameChar1 c || isDigit c
 
-    many1Satisfy2L nameChar1 nameChar "variable name" |>> Name
+    many1Satisfy2L nameChar1 nameChar "variable name"
+
+let pvariable = pname |>> (fun name -> { Key = name })
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
-let pexpr, private pexprRef = createParserForwardedToRef<Expr, ParserState> ()
+let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 
 //parses any expression surrounded with brackets
 let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
-let pterm = (pfloat |>> Constant <?> "constant") <|> (pname |>> Variable <?> "variable name") |>> Term
+let pterm = (pfloat |>> Constant <?> "constant") <|> (pvariable |>> Variable <?> "variable name") |>> Term
 
 //parse any supported functions
 let pfunction =
     let functionArguments = (ws1 >>? pterm) <|> pbracketedExpr
     let functionName: Parser<Name, ParserState> =
-        //Attempt to parse a Name
-        let getResult result = match result with Name n -> n
         (fun stream ->
+            //Attempt to parse a Name
             let reply = (pname stream)
             //if successful, assert that that name appears in the available function set
-            if reply.Status = Ok && Set.contains (getResult reply.Result) stream.UserState.functions then reply
+            if reply.Status = Ok then
+                if Set.contains reply.Result stream.UserState.functions then Reply({ Key = reply.Result })
+                else Reply(Error, messageError "not a function name")
             //fail on error or missing function
-            else if reply.Status = Error then reply
             else Reply(Error, messageError "expected function name"))
 
     attempt (functionName .>>. functionArguments) |>> FunctionCall <?> "function call"
@@ -50,17 +52,10 @@ let pfunction =
 //parse an assignment command
 // let Name = Expr [, Name2 = Expr2]
 let passignment = 
-    let binding = (pname .>> ws_str_ws "=") .>>. pexpr |>> Assignment
+    let binding = pipe2 (pvariable .>> ws_str_ws "=") pexpr (fun name expr -> (name, expr))
     let manyBindings = sepBy1 binding (ws_str_ws ",")
     str_ws1 "let" >>. manyBindings <?> "variable binding"
 
-//parse a deletion command
-// del Name [, Name2]
-let pdeletion = 
-    let name = (pname |>> Deletion)
-    let manyNames = sepBy1 name (ws_str_ws ",")
-    str_ws1 "del" >>. manyNames <?> "variable deletion"
-    
 //attempts to parse a "negative" expression
 //expression can be any term or bracketed expression
 let pnegativeExpr =
@@ -70,7 +65,7 @@ let pnegativeExpr =
 
 //implement the pexpr parser
 do pexprRef :=
-    let opp = new OperatorPrecedenceParser<Expr, unit, ParserState> ()
+    let opp = new OperatorPrecedenceParser<Expr, unit, _> ()
     let expr = opp.ExpressionParser
     opp.TermParser <- (pfunction <|> pterm <|> pnegativeExpr <|> pbracketedExpr) .>> ws
     //BEDMAS
@@ -82,4 +77,4 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
     expr
 
-let pcommand_eof = ((passignment |>> Update) <|> (pdeletion |>> Update) <|> (pexpr |>> Expr)).>> eof
+let pcommand_eof = ((passignment |>> Assignment) <|> (pexpr |>> Single)).>> eof

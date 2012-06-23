@@ -6,22 +6,20 @@ open FParsec.CharParsers
 open Calculator.Ast
 open Calculator.Engine
 
-type State = { memoryMap : Map<string, float>; 
-               functionMap : Map<string, (float -> float)>
-               debug: bool }
+type State = { MemoryMap : Map<string, float>; 
+               FunctionMap : Map<string, (float -> float)>
+               Debug: bool }
 
 type ParseResult =
 | Command of Command
 | Error of string
 
-type AssignmentResult = { name : string; value : float }
-
 type CommandResult = 
-| ExpressionResult of State * float
-| UpdateResult of State * AssignmentResult list
+| SingleResult of State * float
+| AssignmentResult of State * (string * float) list
 
 let private parserStateFrom state =
-    let functionNames = Map.toSeq state.functionMap |> Seq.map (fun (key, value) -> key) |> Set.ofSeq
+    let functionNames = Map.toSeq state.FunctionMap |> Seq.map (fun (key, value) -> key) |> Set.ofSeq
     { functions = functionNames }
 
 let parseLine state line =
@@ -43,53 +41,40 @@ let rec evalExpr state expr =
     | Power (l, r) -> System.Math.Pow(evalExpr' l, evalExpr' r)
     | Modulo (l, r) -> (evalExpr' l) % (evalExpr' r)
     | Negative e -> -1.0 * (evalExpr' e)
-        
+
 and evalFunction state name expr =
-    let name = (evalName name)
-    match (Map.tryFind name state.functionMap) with
+    match (Map.tryFind name.Key state.FunctionMap) with
     | Some fn -> fn (evalExpr state expr)
-    | None -> failwith (sprintf "Function %s not defined" name)
+    | None -> failwith (sprintf "Function %s not defined" name.Key)
 
 and evalTerm state term =
     match term with
     | Constant c -> c
     | Variable n -> evalVariable state n
 
-and evalName name = match name with Name n -> n
-
 and evalVariable state name =
-    let key = (evalName name)
-    match (Map.tryFind key state.memoryMap) with
+    match (Map.tryFind name.Key state.MemoryMap) with
     | Some v -> v
-    | None -> failwith (sprintf "Variable %s does not exist" key)
+    | None -> failwith (sprintf "Variable %s does not exist" name.Key)
 
 /// Execute a command
 let executeCommand state command =
-    let setMem state key value = { state with memoryMap = Map.add key value state.memoryMap }
-    let clearMem state key = { state with memoryMap = Map.remove key state.memoryMap }
+    let setMem state key value = { state with MemoryMap = Map.add key value state.MemoryMap }
+    let clearMem state key = { state with MemoryMap = Map.remove key state.MemoryMap }
     
     match command with
-    | Expr expr ->
+    | Single expr ->
         let result = (evalExpr state expr)
         let newState = setMem state "_" result
-        ExpressionResult (newState, result)
+        SingleResult (newState, result)
         
-    | Update list ->
+    | Assignment expressions ->
         //Each update may optionally add to the list of "assignment results"
-        let applyUpdate (state, results) update =
-            match update with
-            | Assignment (name, expr) -> 
-                let name = (evalName name)
-                let result = (evalExpr state expr)
-                let newState = setMem state name result
-                (newState, { name = name; value = result } :: results)
-
-            | Deletion (name) ->
-                (evalVariable state name) |> ignore //checks to make sure the variable exists
-                let name = (evalName name)
-                let newState = clearMem state name
-                (newState, results)
+        let applyUpdate (state, results) (name, expr) =
+            let result = (evalExpr state expr)
+            let newState = setMem state name.Key result
+            (newState, (name.Key, result) :: results)
         
         //fold the list of "updates" to generate a new state and a list of assignments
-        let newState, results = Seq.fold applyUpdate (state, []) list
-        UpdateResult (newState, List.rev results)
+        let newState, assignments = List.fold applyUpdate (state, []) expressions
+        AssignmentResult (newState, List.rev assignments)

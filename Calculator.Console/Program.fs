@@ -5,7 +5,7 @@ open Calculator.Implementation
 open Calculator.Console.CommandHelpers
 
 let printVariables (state:State) =
-    Map.toSeq state.memoryMap |> 
+    Map.toSeq state.MemoryMap |> 
     Seq.sortBy (fun (key, value) -> key) |>
     Seq.iter (fun (key, value) ->
                 if not (key = "_") then
@@ -21,17 +21,17 @@ let runEquation state line =
         printErr msg
         state
     | Command command -> 
-        if state.debug then printfn "Command: %A" command
+        if state.Debug then printfn "Command: %A" command
         //executeCommand host command state
         try
             let result = executeCommand state command
             match result with
-            | UpdateResult (newState, assignments) -> 
-                for assignment in assignments do
-                    printfn "%s = %g" assignment.name assignment.value
-                newState
-            | ExpressionResult (newState, value) ->
+            | SingleResult (newState, value) ->
                 printfn "= %g" value
+                newState
+            | AssignmentResult (newState, assignments) -> 
+                for (name, value) in assignments do
+                    printfn "%s = %g" name value
                 newState
         with ex ->
             printErr ex.Message
@@ -69,10 +69,10 @@ let processCommand (state:State) (command:Command) =
         state
     | Debug arg ->
         match arg with
-        | "on"  -> { state with debug = true }
-        | "off" -> { state with debug = false }
+        | "on"  -> { state with Debug = true }
+        | "off" -> { state with Debug = false }
         | null  -> 
-            printfn "Debug mode %s" (if state.debug then "enabled" else "disabled")
+            printfn "Debug mode %s" (if state.Debug then "enabled" else "disabled")
             state
         | _     -> 
             printfn "Invalid argument: %s" arg
@@ -90,16 +90,16 @@ let commands = seq {
         | commandString -> yield Command.create commandString 
 }
 
-let initialState = { memoryMap = Map.ofSeq (seq { 
+let initialState = { MemoryMap = Map.ofSeq (seq { 
                         yield ("pi", 3.14159) 
                      });
-                     functionMap = Map.ofSeq (seq {
+                     FunctionMap = Map.ofSeq (seq {
                         yield ("sin", (fun arg -> System.Math.Sin(arg)))
                         yield ("cos", (fun arg -> System.Math.Cos(arg)))
                         yield ("tan", (fun arg -> System.Math.Tan(arg)))
                         yield ("sqrt", (fun arg -> System.Math.Sqrt(arg)))
                      });
-                     debug = false }
+                     Debug = false }
 
 //start the main loop
 Seq.fold processCommand initialState commands |> ignore
