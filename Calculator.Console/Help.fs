@@ -47,9 +47,6 @@ The result of the last equation is always assigned to the variable '_'
     > _ - 6
     = 24
 
-You can delete variables:
-    > del sixty_four, twenty_two
-
 You can read instructions from a file (including variable assignments)
 Each line is interpreted as one equation
     > read C:\path\to\file.txt
