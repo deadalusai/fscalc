@@ -37,7 +37,7 @@ let runEquation state line =
             printErr ex.Message
             state
 
-let processFile (fname:string) (state:State) =
+let processFile state fname =
     try
         use reader = new System.IO.StreamReader(System.IO.File.OpenRead fname)
         let lines = seq {
@@ -51,26 +51,37 @@ let processFile (fname:string) (state:State) =
         printErr ex.Message
         state
 
-let processCommand (state:State) (command:Command) =
+let tryExecuteCommand state command =
+    let do' unit = None
     match command with
-    | Exit -> exit 0
-    | Help -> printfn "%s" Help.helpText; state
-    | ClearScreen -> 
-        try System.Console.Clear(); state
-        with ex -> state
-    | ReadFile fname -> processFile fname state
-    | PrintVariables -> printVariables state; state
+    | Exit           -> do' (exit 0)
+    | Help           -> do' (printfn "%s" Help.helpText)
+    | ClearScreen    -> do' (try System.Console.Clear() with ex -> ())
+    | PrintVariables -> do' (printVariables state)
     | Debug arg ->
         match arg with
-        | "on"  -> { state with Debug = true }
-        | "off" -> { state with Debug = false }
-        | null  -> printfn "Debug mode %s" (if state.Debug then "enabled" else "disabled"); state
-        | _     -> printfn "Invalid argument: %s" arg; state
-    | EquationCommand equation -> runEquation state equation
+        | "on"  -> Some { state with Debug = true }
+        | "off" -> Some { state with Debug = false }
+        | null  -> do' (printfn "Debug mode %s" (if state.Debug then "enabled" else "disabled"))
+        | _     -> do' (printfn "Invalid argument: %s" arg)
+    | ReadFile fname           -> Some (processFile state fname)
+    | EquationCommand equation -> Some (runEquation state equation)
 
-//start the main loop
-printfn "Calculator - type '?' for help, 'q' to quit"
-let commands = seq { 
+let initialState = { 
+    MemoryMap = Map.ofSeq (seq { 
+        yield "pi", 3.14159
+    });
+    FunctionMap = Map.ofSeq (seq {
+        yield "sin", (fun arg -> System.Math.Sin(arg))
+        yield "cos", (fun arg -> System.Math.Cos(arg))
+        yield "tan", (fun arg -> System.Math.Tan(arg))
+        yield "sqrt", (fun arg -> System.Math.Sqrt(arg))
+    });
+    Debug = false 
+}
+
+//commands defines a sequence which provides the user input
+let commands = seq {
     while true do
         printf "> "
         match System.Console.ReadLine().Trim() with
@@ -78,16 +89,11 @@ let commands = seq {
         | commandString -> yield Command.create commandString 
 }
 
-let initialState = { MemoryMap = Map.ofSeq (seq { 
-                        yield "pi", 3.14159
-                     });
-                     FunctionMap = Map.ofSeq (seq {
-                        yield "sin", (fun arg -> System.Math.Sin(arg))
-                        yield "cos", (fun arg -> System.Math.Cos(arg))
-                        yield "tan", (fun arg -> System.Math.Tan(arg))
-                        yield "sqrt", (fun arg -> System.Math.Sqrt(arg))
-                     });
-                     Debug = false }
+let processCommand state command =
+    match tryExecuteCommand state command with
+    | Some newState -> newState
+    | None -> state
 
 //start the main loop
+printfn "Calculator - type '?' for help, 'q' to quit"
 Seq.fold processCommand initialState commands |> ignore
