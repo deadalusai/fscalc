@@ -1,8 +1,7 @@
 ﻿namespace Calculator.Console
 
 module Help =
-    let write () =
-        printfn @"The following operations are supported:
+    let helpText = @"The following operations are supported:
     - multiplication -> X * Y
     - division       -> X / Y
     - addition       -> X + Y
