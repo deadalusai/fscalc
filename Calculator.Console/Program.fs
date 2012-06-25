@@ -14,7 +14,7 @@ let printVariables (state:State) =
             printfn "%s%s -> %g" padding key value
 
 let printErr message =
-    fprintfn System.Console.Error "ERROR: %s" message
+    fprintfn stderr "ERROR: %s" message
 
 let runEquation state line =
     let parseResult = (parseLine state line)
