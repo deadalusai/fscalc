@@ -11,8 +11,8 @@ type State = { MemoryMap : Map<string, float>;
                Debug: bool }
 
 type ParseResult =
-| Command of Command
-| Error of string
+| ParseSuccess of Statement
+| ParseError of string
 
 type CommandResult = 
 | SingleResult of State * float
@@ -26,8 +26,8 @@ let parseLine state line =
     let parserState = parserStateFrom state
     let parserResult = runParserOnString pcommand_eof parserState "Input" line
     match parserResult with
-    | Success (expr, state, pos) -> Command expr
-    | Failure (msg, err, state) -> Error msg
+    | Success (expr, state, pos) -> ParseSuccess expr
+    | Failure (msg, err, state)  -> ParseError msg
         
 let rec evalExpr state expr =
     let evalExpr' = evalExpr state
@@ -56,14 +56,14 @@ and evalVariable state name =
     | Some v -> v
     | None -> failwith (sprintf "Variable %s does not exist" name.Key)
 
-/// Execute a command
-let executeCommand state command =
+/// Execute a statement
+let executeStatement state statement =
     let setMem state key value = { state with MemoryMap = Map.add key value state.MemoryMap }
     let clearMem state key = { state with MemoryMap = Map.remove key state.MemoryMap }
     
-    match command with
-    | Single expr ->
-        let result = (evalExpr state expr)
+    match statement with
+    | Single expression ->
+        let result = (evalExpr state expression)
         let newState = setMem state "_" result
         SingleResult (newState, result)
         

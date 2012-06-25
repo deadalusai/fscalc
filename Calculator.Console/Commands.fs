@@ -1,36 +1,45 @@
 ﻿module Calculator.Console.CommandHelpers
 
-type private InputPair = { Name : string; Args : string }
-
 let private whitespace = [| ' '; '\t' |]
 
-let private createInputPair (str:string) = 
-    //split the input at the first whitespace
-    //First value is the command name, second is any arguments passed to it
-    let idx = (str.IndexOfAny whitespace)
-    if idx = -1 then
-        { Name = str; Args = null }
-    else
-        { Name = str.Substring(0, idx);
-            Args = str.Substring(idx).Trim(); }
+let private parseBool s =
+    match s with
+    | "on"  | "true"  | "1" -> true
+    | "off" | "false" | "0" -> false
+    | _                     -> failwith (sprintf "could not parse debug switch '%s'" s)
 
 type Command =
 | Exit
 | Help
 | ClearScreen
 | PrintVariables
+| PrintDebug
+| SetDebug of bool
 | ReadFile of string
-| Debug of string
-| EquationCommand of string
+| ReadInput of string
 
-    static member create (command:string) =
-        let input = (createInputPair command)
-        match input.Name with
-        | "q"   | "exit"  -> Exit
-        | "?"   | "help"  -> Help
-        | "cls" | "clear" -> ClearScreen
-        | "read"          -> ReadFile (input.Args)
-        | "print"         -> PrintVariables
-        | "debug"         -> Debug (input.Args)
-        //unknown - assume it's an equation
-        | _               -> EquationCommand (command)    
+    static member parse (commandString:string) =
+        let input = ReadInput commandString
+        let tokens = commandString.Split(whitespace, 2, System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
+        match tokens with
+        //bare commands
+        | [command] ->
+            match command with
+            | "q"   | "exit"  -> Exit
+            | "?"   | "help"  -> Help
+            | "cls" | "clear" -> ClearScreen
+            | "print"         -> PrintVariables
+            | "debug"         -> PrintDebug
+            //unknown - assume it's an equation
+            | _ -> input
+        
+        //commands with an argument
+        | [command; arg] ->
+            match command with
+            | "read"  -> ReadFile arg
+            | "debug" -> SetDebug (parseBool arg)
+            //unknown - assume it's an equation
+            | _ -> input
+        
+        //unknown - assume it's an equation or binding
+        | _ -> input

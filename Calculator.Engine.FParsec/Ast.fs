@@ -22,7 +22,7 @@ and Expr =
 //Inverters
 | Negative      of Expr
 
-and Command =
+and Statement =
 | Single of Expr
 //VarAssignment ops are done en-mass
 | Assignment of VariableAssignment list

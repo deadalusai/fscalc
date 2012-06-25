@@ -9,7 +9,7 @@ let printVariables (state:State) =
     Seq.sortBy (fun (key, value) -> key) |>
     Seq.iter (fun (key, value) ->
                 if not (key = "_") then
-                    printfn "%5s -> %g" key value)
+                    printfn "%8s -> %g" key value)
 
 let printErr message =
     fprintfn System.Console.Error "ERROR: %s" message
@@ -17,83 +17,76 @@ let printErr message =
 let runEquation state line =
     let parseResult = (parseLine state line)
     match parseResult with
-    | Error msg -> 
-        printErr msg
-        state
-    | Command command -> 
-        if state.Debug then printfn "Command: %A" command
+    | ParseError msg -> failwith msg
+    | ParseSuccess statement -> 
+        if state.Debug then printfn "Statement: %A" statement
         //executeCommand host command state
-        try
-            let result = executeCommand state command
-            match result with
-            | SingleResult (newState, value) ->
-                printfn "= %g" value
-                newState
-            | AssignmentResult (newState, assignments) -> 
-                for (name, value) in assignments do
-                    printfn "%s = %g" name value
-                newState
-        with ex ->
-            printErr ex.Message
-            state
+        let result = executeStatement state statement
+        match result with
+        | SingleResult (newState, value) ->
+            printfn "= %g" value
+            newState
+        | AssignmentResult (newState, assignments) -> 
+            for (name, value) in assignments do
+                printfn "%s = %g" name value
+            newState
 
 let processFile state fname =
-    try
-        use reader = new System.IO.StreamReader(System.IO.File.OpenRead fname)
-        let lines = seq {
-            while not reader.EndOfStream do
-                let line = reader.ReadLine().Trim()
-                if line.Length > 0 && not (line.StartsWith "#") then
-                    yield line 
-        }
-        Seq.fold runEquation state lines
-    with ex ->
-        printErr ex.Message
-        state
+    use reader = new System.IO.StreamReader(System.IO.File.OpenRead fname)
+    let lines = seq {
+        while not reader.EndOfStream do
+            let line = reader.ReadLine().Trim()
+            if line.Length > 0 && not (line.StartsWith "#") then
+                yield line 
+    }
+    Seq.fold runEquation state lines
 
-let tryExecuteCommand state command =
-    let do' unit = None
+let handleInput state command =
+    let none unit = None
     match command with
-    | Exit           -> do' (exit 0)
-    | Help           -> do' (printfn "%s" Help.helpText)
-    | ClearScreen    -> do' (try System.Console.Clear() with ex -> ())
-    | PrintVariables -> do' (printVariables state)
-    | Debug arg ->
-        match arg with
-        | "on"  -> Some { state with Debug = true }
-        | "off" -> Some { state with Debug = false }
-        | null  -> do' (printfn "Debug mode %s" (if state.Debug then "enabled" else "disabled"))
-        | _     -> do' (printfn "Invalid argument: %s" arg)
-    | ReadFile fname           -> Some (processFile state fname)
-    | EquationCommand equation -> Some (runEquation state equation)
+    | Exit            -> none (exit 0)
+    | Help            -> none (printfn "%s" Help.helpText)
+    | ClearScreen     -> none (try System.Console.Clear() with ex -> ())
+    | PrintVariables  -> none (printVariables state)
+    | PrintDebug      -> none (printfn "Debug mode %s" (if state.Debug then "enabled" else "disabled"))
+    | SetDebug flag   -> Some { state with Debug = flag }
+    | ReadFile fname  -> Some (processFile state fname)
+    | ReadInput input -> Some (runEquation state input)
 
 let initialState = { 
     MemoryMap = Map.ofSeq (seq { 
         yield "pi", 3.14159
     });
     FunctionMap = Map.ofSeq (seq {
-        yield "sin", (fun arg -> System.Math.Sin(arg))
-        yield "cos", (fun arg -> System.Math.Cos(arg))
-        yield "tan", (fun arg -> System.Math.Tan(arg))
-        yield "sqrt", (fun arg -> System.Math.Sqrt(arg))
+        yield "sin",  System.Math.Sin
+        yield "cos",  System.Math.Cos
+        yield "tan",  System.Math.Tan
+        yield "sqrt", System.Math.Sqrt
     });
     Debug = false 
 }
 
 //commands defines a sequence which provides the user input
-let commands = seq {
+let inputSeq = seq {
     while true do
         printf "> "
-        match System.Console.ReadLine().Trim() with
-        | "" -> ()
-        | commandString -> yield Command.create commandString 
+        let input = System.Console.ReadLine().Trim() 
+        if input.Length > 0 then 
+            yield input
 }
 
-let processCommand state command =
-    match tryExecuteCommand state command with
-    | Some newState -> newState
-    | None -> state
+//main handles parsing console commands and updating the application state
+let main state input =
+    try
+        let command = Command.parse input 
+        match handleInput state command with
+        | Some newState -> newState
+        | None          -> state
+
+    with ex ->
+        printErr ex.Message
+        state
 
 //start the main loop
 printfn "Calculator - type '?' for help, 'q' to quit"
-Seq.fold processCommand initialState commands |> ignore
+inputSeq |> Seq.fold main initialState |> ignore
