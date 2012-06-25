@@ -5,11 +5,13 @@ open Calculator.Implementation
 open Calculator.Console.CommandHelpers
 
 let printVariables (state:State) =
-    Map.toSeq state.MemoryMap |> 
-    Seq.sortBy (fun (key, value) -> key) |>
-    Seq.iter (fun (key, value) ->
-                if not (key = "_") then
-                    printfn "%8s -> %g" key value)
+    let variables = Map.toSeq state.MemoryMap |> Seq.sortBy (fun (key, _) -> key)
+    let maxWidth = variables |> Seq.fold (fun max (key, _) -> if key.Length > max then key.Length else max) 0
+
+    for key, value in variables do
+        if not (key = "_") then
+            let padding = String.replicate (maxWidth - key.Length) " "
+            printfn "%s%s -> %g" padding key value
 
 let printErr message =
     fprintfn System.Console.Error "ERROR: %s" message
@@ -18,15 +20,15 @@ let runEquation state line =
     let parseResult = (parseLine state line)
     match parseResult with
     | ParseError msg -> failwith msg
-    | ParseSuccess statement -> 
+    | ParseSuccess statement ->
         if state.Debug then printfn "Statement: %A" statement
-        //executeCommand host command state
+        
         let result = executeStatement state statement
         match result with
         | SingleResult (newState, value) ->
             printfn "= %g" value
             newState
-        | AssignmentResult (newState, assignments) -> 
+        | AssignmentResult (newState, assignments) ->
             for (name, value) in assignments do
                 printfn "%s = %g" name value
             newState
