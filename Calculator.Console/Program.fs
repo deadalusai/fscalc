@@ -22,7 +22,6 @@ let runEquation state line =
     | ParseError msg -> failwith msg
     | ParseSuccess statement ->
         if state.Debug then printfn "Statement: %A" statement
-        
         let result = executeStatement state statement
         match result with
         | SingleResult (newState, value) ->
@@ -33,17 +32,17 @@ let runEquation state line =
                 printfn "%s = %g" name value
             newState
 
-let processFile state fname =
-    use reader = new System.IO.StreamReader(System.IO.File.OpenRead fname)
-    let lines = seq {
+let runFile state filename =
+    use reader = new System.IO.StreamReader(System.IO.File.OpenRead filename)
+    let fileInput = seq {
         while not reader.EndOfStream do
             let line = reader.ReadLine().Trim()
             if line.Length > 0 && not (line.StartsWith "#") then
                 yield line 
     }
-    Seq.fold runEquation state lines
+    fileInput |> Seq.fold runEquation state
 
-let handleInput state command =
+let handleUserCommand state command =
     let none unit = None
     match command with
     | Exit            -> none (exit 0)
@@ -52,7 +51,7 @@ let handleInput state command =
     | PrintVariables  -> none (printVariables state)
     | PrintDebug      -> none (printfn "Debug mode %s" (if state.Debug then "enabled" else "disabled"))
     | SetDebug flag   -> Some { state with Debug = flag }
-    | ReadFile fname  -> Some (processFile state fname)
+    | ReadFile fname  -> Some (runFile state fname)
     | ReadInput input -> Some (runEquation state input)
 
 let initialState = { 
@@ -69,7 +68,7 @@ let initialState = {
 }
 
 //commands defines a sequence which provides the user input
-let inputSeq = seq {
+let userInput = seq {
     while true do
         printf "> "
         let input = System.Console.ReadLine().Trim() 
@@ -81,7 +80,7 @@ let inputSeq = seq {
 let main state input =
     try
         let command = Command.parse input 
-        match handleInput state command with
+        match handleUserCommand state command with
         | Some newState -> newState
         | None          -> state
 
@@ -91,4 +90,4 @@ let main state input =
 
 //start the main loop
 printfn "Calculator - type '?' for help, 'q' to quit"
-inputSeq |> Seq.fold main initialState |> ignore
+userInput |> Seq.fold main initialState |> ignore
