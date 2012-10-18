@@ -13,12 +13,10 @@ let private str_ws1 s = skipString s >>? ws1
 let private ws_str_ws s = ws >>. skipString s .>> ws
 let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 
-type ParserState = { Functions : Set<string> }
-
 //matches "names"
-let private pname = regexL "[a-zA-Z_][a-zA-Z_0-9]*" "name"
+let private pname = regexL "[a-zA-Z_][a-zA-Z_0-9]*" "name" |>> (fun name -> { Key = name })
 
-let pvariable = pname |>> (fun name -> { Key = name })
+let pvariable = pname
 
 //a placeholder for the pexpr parser which will parse BEDMAS operations
 let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
@@ -32,18 +30,7 @@ let pterm = (pfloat |>> Constant <?> "constant") <|> (pvariable |>> Variable <?>
 //parse any supported Functions
 let pfunction =
     let functionArguments = (ws1 >>? pterm) <|> pbracketedExpr
-    let functionName: Parser<Name, ParserState> =
-        (fun stream ->
-            //Attempt to parse a Name
-            let reply = (pname stream)
-            //if successful, assert that that name appears in the available function set
-            if reply.Status = Ok then
-                if Set.contains reply.Result stream.UserState.Functions then Reply({ Key = reply.Result })
-                else Reply(Error, messageError "not a function name")
-            //fail on error or missing function
-            else Reply(Error, messageError "expected function name"))
-
-    attempt (functionName .>>. functionArguments) |>> FunctionCall <?> "function call"
+    attempt (pname .>>. functionArguments) |>> FunctionCall <?> "function call"
     
 //parse an assignment command
 // let Name = Expr [, Name2 = Expr2]
@@ -61,7 +48,7 @@ let pnegativeExpr =
 
 //implement the pexpr parser
 do pexprRef :=
-    let opp = new OperatorPrecedenceParser<Expr, unit, _> ()
+    let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
     let expr = opp.ExpressionParser
     opp.TermParser <- (pfunction <|> pterm <|> pnegativeExpr <|> pbracketedExpr) .>> ws
     //BEDMAS
@@ -73,4 +60,4 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
     expr
 
-let pcommand_eof = ((passignment |>> Assignment) <|> (pexpr |>> Single)).>> eof
+let pcommand_eof = ((passignment |>> Assignment) <|> (pexpr |>> Single)) .>> eof

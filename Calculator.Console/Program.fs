@@ -7,18 +7,25 @@ open Calculator.Console.CommandHelpers
 let printsn (s:string) = System.Console.WriteLine s
 
 let printVariables (state:State) =
-    let variables = Map.toList state.MemoryMap |> List.sortBy (fun (key, _) -> key)
+    let variables = Map.toList state.MemoryMap |> 
+                    List.sortBy (fun (key, _) -> key) |>
+                    List.sortBy (fun (_, s) -> s.GetType().Name) // hack hack - sort by type (functions first)
+
     let widestKey, _ = variables |> Seq.maxBy (fun (key, _) -> key.Length)
 
     let rec recurse items =
         match items with
-        | []                 -> ()
-        | ("_", _)::tail     -> recurse tail 
+        | ("_", _____)::tail -> recurse tail //Skip printing the implicit variable
         | (key, value)::tail -> 
-            let padding = String.replicate (String.length widestKey - String.length key) " "
-            printfn "%s%s -> %g" padding key value
-            recurse tail
+            let s = match value with
+                    | Function _ -> "Function"
+                    | Value v    -> sprintf "Value %g" v
 
+            let padding = String.replicate (String.length widestKey - String.length key) " "
+            printfn "%s%s -> %s" padding key s
+            recurse tail
+        | _                  -> ()
+        
     recurse variables
 
 let printErr message =
@@ -64,13 +71,12 @@ let handleUserCommand state command =
 
 let initialState = { 
     MemoryMap = Map.ofSeq (seq { 
-        yield "pi", 3.14159
-    });
-    FunctionMap = Map.ofSeq (seq {
-        yield "sin",  System.Math.Sin
-        yield "cos",  System.Math.Cos
-        yield "tan",  System.Math.Tan
-        yield "sqrt", System.Math.Sqrt
+        yield "pi", Value 3.14159
+        //Functions
+        yield "sin",  Function System.Math.Sin
+        yield "cos",  Function System.Math.Cos
+        yield "tan",  Function System.Math.Tan
+        yield "sqrt", Function System.Math.Sqrt
     });
     Debug = false 
 }

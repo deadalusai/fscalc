@@ -6,8 +6,11 @@ open FParsec.CharParsers
 open Calculator.Ast
 open Calculator.Engine
 
-type State = { MemoryMap : Map<string, float>; 
-               FunctionMap : Map<string, (float -> float)>
+type Stored = 
+| Value of float
+| Function of (float -> float)
+
+type State = { MemoryMap : Map<string, Stored>;
                Debug: bool }
 
 type ParseResult =
@@ -18,17 +21,17 @@ type CommandResult =
 | SingleResult of State * float
 | AssignmentResult of State * (string * float) list
 
-let private parserStateFrom state =
-    let functionNames = Map.toSeq state.FunctionMap |> Seq.map (fun (key, value) -> key) |> Set.ofSeq
-    { Functions = functionNames }
-
 let parseLine state line =
-    let parserState = parserStateFrom state
-    let parserResult = runParserOnString pcommand_eof parserState "Input" line
+    let parserResult = runParserOnString pcommand_eof () "Input" line
     match parserResult with
     | Success (expr, state, pos) -> ParseSuccess expr
     | Failure (msg, err, state)  -> ParseError msg
-        
+
+let private getStored state name =
+    match (Map.tryFind name.Key state.MemoryMap) with
+    | Some s -> s
+    | None   -> failwith (sprintf "Name %s not defined" name.Key)
+
 let rec evalExpr state expr =
     let evalExpr' = evalExpr state
     match expr with
@@ -47,14 +50,14 @@ let rec evalExpr state expr =
     | Negative e -> -1.0 * (evalExpr' e)
 
 and evalFunction state name expr =
-    match (Map.tryFind name.Key state.FunctionMap) with
-    | Some fn -> fn (evalExpr state expr)
-    | None -> failwith (sprintf "Function %s not defined" name.Key)
+    match (getStored state name) with
+    | Function f -> f (evalExpr state expr)
+    | _          -> failwith (sprintf "%s is not a function" name.Key)
     
 and evalVariable state name =
-    match (Map.tryFind name.Key state.MemoryMap) with
-    | Some v -> v
-    | None -> failwith (sprintf "Variable %s does not exist" name.Key)
+    match (getStored state name) with
+    | Value f -> f
+    | _       -> failwith (sprintf "%s is not a value" name.Key)
 
 /// Execute a statement
 let executeStatement state statement =
@@ -64,14 +67,14 @@ let executeStatement state statement =
     match statement with
     | Single expression ->
         let result = (evalExpr state expression)
-        let newState = setMem state "_" result
+        let newState = setMem state "_" (Value result)
         SingleResult (newState, result)
         
     | Assignment expressions ->
         //Each update may optionally add to the list of "assignment results"
         let applyUpdate (state, results) (name, expr) =
             let result = (evalExpr state expr)
-            let newState = setMem state name.Key result
+            let newState = setMem state name.Key (Value result)
             (newState, (name.Key, result) :: results)
         
         //fold the list of "updates" to generate a new state and a list of assignments
