@@ -4,14 +4,22 @@ open Calculator.Ast
 open Calculator.Implementation
 open Calculator.Console.CommandHelpers
 
-let printVariables (state:State) =
-    let variables = Map.toSeq state.MemoryMap |> Seq.sortBy (fun (key, _) -> key)
-    let maxWidth = variables |> Seq.fold (fun max (key, _) -> if key.Length > max then key.Length else max) 0
+let printsn (s:string) = System.Console.WriteLine s
 
-    for key, value in variables do
-        if not (key = "_") then
-            let padding = String.replicate (maxWidth - key.Length) " "
+let printVariables (state:State) =
+    let variables = Map.toList state.MemoryMap |> List.sortBy (fun (key, _) -> key)
+    let widestKey, _ = variables |> Seq.maxBy (fun (key, _) -> key.Length)
+
+    let rec recurse items =
+        match items with
+        | []                 -> ()
+        | ("_", _)::tail     -> recurse tail 
+        | (key, value)::tail -> 
+            let padding = String.replicate (String.length widestKey - String.length key) " "
             printfn "%s%s -> %g" padding key value
+            recurse tail
+
+    recurse variables
 
 let printErr message =
     fprintfn stderr "ERROR: %s" message
@@ -46,7 +54,7 @@ let handleUserCommand state command =
     let none unit = None
     match command with
     | Exit            -> none (exit 0)
-    | Help            -> none (printfn "%s" Help.helpText)
+    | Help            -> none (printsn Help.helpText)
     | ClearScreen     -> none (try System.Console.Clear() with ex -> ())
     | PrintVariables  -> none (printVariables state)
     | PrintDebug      -> none (printfn "Debug mode %s" (if state.Debug then "enabled" else "disabled"))
@@ -68,7 +76,7 @@ let initialState = {
 }
 
 //commands defines a sequence which provides the user input
-let userInput = seq {
+let rec userInput = seq {
     while true do
         printf "> "
         let input = System.Console.ReadLine().Trim() 

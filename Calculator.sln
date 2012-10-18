@@ -1,8 +1,6 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Calculator.Console", "Calculator.Console\Calculator.Console.fsproj", "{F87D15D0-E04F-4A84-99C3-E5A7A160AEDE}"
-EndProject
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{EE31C250-F458-41B7-83F9-839E1B1E26BF}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
@@ -13,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{E19FCA
 		.nuget\NuGet.exe = .nuget\NuGet.exe
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Calculator.Console", "Calculator.Console\Calculator.Console.fsproj", "{F87D15D0-E04F-4A84-99C3-E5A7A160AEDE}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Calculator.Engine.FParsec", "Calculator.Engine.FParsec\Calculator.Engine.FParsec.fsproj", "{B42F17F3-F555-4346-8E36-C36531810678}"
 EndProject
