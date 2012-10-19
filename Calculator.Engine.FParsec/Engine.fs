@@ -14,7 +14,7 @@ let private ws_str_ws s = ws >>. skipString s .>> ws
 let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 
 //matches "names"
-let private pname = regexL "[a-zA-Z_][a-zA-Z_0-9]*" "name" |>> (fun name -> { Key = name })
+let private pname : Parser<Name, unit> = regexL "[a-zA-Z_][a-zA-Z_0-9]*" "name"
 
 let pvariable = pname
 
@@ -32,12 +32,25 @@ let pfunction =
     let functionArguments = (ws1 >>? pterm) <|> pbracketedExpr
     attempt (pname .>>. functionArguments) |>> FunctionCall <?> "function call"
     
+//Parse "= Expr" -> Expr
+let private pEqExpr = ws_str_ws "=" >>. pexpr
+
+//Parse a function definition
+let pfunctionDefinition =
+    // x a b = a + b + 2
+    let pargs = sepEndBy1 pname ws1
+    attempt (pipe3 (pname .>> ws1) pargs pEqExpr (fun name args expr -> FunctionDef (name, args, expr)) <?> "function binding")
+
+//Parse a variable definition
+let pvariableDefinition =
+    attempt (pipe2 pvariable pEqExpr (fun name expr -> ValueDef (name, expr)) <?> "variable binding")
+
 //parse an assignment command
 // let Name = Expr [, Name2 = Expr2]
-let passignment = 
-    let binding = pipe2 (pvariable .>> ws_str_ws "=") pexpr (fun name expr -> (name, expr))
-    let manyBindings = sepBy1 binding (ws_str_ws ",")
-    str_ws1 "let" >>. manyBindings <?> "variable binding"
+// let Name Arg [Arg2] = Expr
+let pdefinitionList = 
+    let manyBindings = sepBy1 (pfunctionDefinition <|> pvariableDefinition) (ws_str_ws ",")
+    str_ws1 "let" >>. manyBindings
 
 //attempts to parse a "negative" expression
 //expression can be any term or bracketed expression
@@ -60,4 +73,4 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
     expr
 
-let pcommand_eof = ((passignment |>> Assignment) <|> (pexpr |>> Single)) .>> eof
+let pcommand_eof = ((pdefinitionList |>> DefinitionList) <|> (pexpr |>> Single)) .>> eof

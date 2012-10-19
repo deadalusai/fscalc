@@ -8,8 +8,8 @@ let printsn (s:string) = System.Console.WriteLine s
 
 let printVariables (state:State) =
     let variables = Map.toList state.MemoryMap |> 
-                    List.sortBy (fun (key, _) -> key) |>
-                    List.sortBy (fun (_, s) -> s.GetType().Name) // hack hack - sort by type (functions first)
+                    List.sortBy (fun (key, s) -> key) |>
+                    List.sortBy (fun (key, s) -> s.GetType().Name) // hack hack - sort by type (functions first)
 
     let widestKey, _ = variables |> Seq.maxBy (fun (key, _) -> key.Length)
 
@@ -18,7 +18,8 @@ let printVariables (state:State) =
         | ("_", _____)::tail -> recurse tail //Skip printing the implicit variable
         | (key, value)::tail -> 
             let s = match value with
-                    | Function _ -> "Function"
+                    | Builtin _  -> "Built-in function"
+                    | Function (args, expr) -> sprintf "User function %s %A = %A" key args expr 
                     | Value v    -> sprintf "Value %g" v
 
             let padding = String.replicate (String.length widestKey - String.length key) " "
@@ -42,9 +43,9 @@ let runEquation state line =
         | SingleResult (newState, value) ->
             printfn "= %g" value
             newState
-        | AssignmentResult (newState, assignments) ->
+        | DefinitionResult (newState, assignments) ->
             for (name, value) in assignments do
-                printfn "%s = %g" name value
+                printfn "%s = %s" name value
             newState
 
 let runFile state filename =
@@ -73,10 +74,10 @@ let initialState = {
     MemoryMap = Map.ofSeq (seq { 
         yield "pi", Value 3.14159
         //Functions
-        yield "sin",  Function System.Math.Sin
-        yield "cos",  Function System.Math.Cos
-        yield "tan",  Function System.Math.Tan
-        yield "sqrt", Function System.Math.Sqrt
+        yield "sin",  Builtin System.Math.Sin
+        yield "cos",  Builtin System.Math.Cos
+        yield "tan",  Builtin System.Math.Tan
+        yield "sqrt", Builtin System.Math.Sqrt
     });
     Debug = false 
 }

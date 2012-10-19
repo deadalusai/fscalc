@@ -1,9 +1,6 @@
 ﻿module Calculator.Ast
 
-[<StructuredFormatDisplay("{StructuredFormatDisplay}")>]
-type Name = { Key : string }
-    with 
-        member private t.StructuredFormatDisplay = t.Key
+type Name = string
 
 //Any term of constant or variable value
 and Expr =
@@ -25,7 +22,9 @@ and Expr =
 and Statement =
 | Single of Expr
 //VarAssignment ops are done en-mass
-| Assignment of VariableAssignment list
+| DefinitionList of Definition list
 
 //Assignment of the result of the given expression to memory
-and VariableAssignment = Name * Expr
+and Definition = 
+| ValueDef of Name * Expr
+| FunctionDef of Name * Name list * Expr
