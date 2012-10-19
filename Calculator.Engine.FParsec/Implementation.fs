@@ -53,13 +53,13 @@ let rec evalExpr state expr =
     | Modulo (l, r) -> (evalExpr' l) % (evalExpr' r)
     | Negative e -> -1.0 * (evalExpr' e)
 
-and evalFunction state name expr = //TODO make expr -> exprList (list of arguments)
-    match (getStored state name) with
-    | Builtin f             -> f (evalExpr state expr)
-    | Function (args, funExpr) -> evalUserFunction state args (expr::[]) funExpr
-    | _                     -> failwith (sprintf "%s is not a function" name)
+and evalFunction state name expr = //TODO make expr -> exprList (list of arguments)    
+    let evalBuiltinFunction state f argExprs =
+        match argExprs with
+        | argExpr::[] -> f (evalExpr state argExpr)
+        | _           -> failwith "Expected 1 args, got %i" (List.length argExprs)
 
-and private evalUserFunction initialState fArgNames fArgExprs fExpr =
+    let evalUserFunction initialState fArgNames fArgExprs fExpr =
         //assert that arguments have been provided
         let required = List.length fArgNames
         let got = List.length fArgExprs
@@ -70,14 +70,14 @@ and private evalUserFunction initialState fArgNames fArgExprs fExpr =
         
         //push each argument into the function state
         let args = List.zip fArgNames fArgExprs
-
-        let updateState state (name, expr) =
-            setMem state name (Value (evalExpr initialState expr))
-
+        let updateState state (name, expr) = setMem state name (Value (evalExpr initialState expr))
         let fState = args |> List.fold updateState initialState
-        
         evalExpr fState fExpr
-     
+    
+    match (getStored state name) with
+    | Builtin f                -> evalBuiltinFunction state f (expr::[])
+    | Function (args, funExpr) -> evalUserFunction state args (expr::[]) funExpr
+    | _                        -> failwith (sprintf "%s is not a function" name)
 
 and evalVariable state name =
     match (getStored state name) with
