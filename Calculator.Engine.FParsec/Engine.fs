@@ -16,8 +16,6 @@ let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
 //matches "names"
 let private pname : Parser<Name, unit> = regexL "[a-zA-Z_][a-zA-Z_0-9]*" "name"
 
-let pvariable = pname
-
 //a placeholder for the pexpr parser which will parse BEDMAS operations
 let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 
@@ -25,12 +23,12 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
-let pterm = (pfloat |>> Constant <?> "constant") <|> (pvariable |>> Variable <?> "variable")
+let pterm = (pfloat |>> Constant <?> "constant") <|> (pname |>> Fetch <?> "fetch variable")
 
 //parse any supported Functions
-let pfunction =
-    let functionArguments = (ws1 >>? pterm) <|> pbracketedExpr
-    attempt (pname .>>. functionArguments) |>> FunctionCall <?> "function call"
+let pfunctionCall =
+    let pargs = sepEndBy1 (pterm <|> pbracketedExpr) ws1
+    attempt (pname .>> ws1 .>>. pargs) |>> FunctionCall <?> "function call"
     
 //Parse "= Expr" -> Expr
 let private pEqExpr = ws_str_ws "=" >>. pexpr
@@ -43,7 +41,7 @@ let pfunctionDefinition =
 
 //Parse a variable definition
 let pvariableDefinition =
-    attempt (pipe2 pvariable pEqExpr (fun name expr -> ValueDef (name, expr)) <?> "variable binding")
+    attempt (pipe2 pname pEqExpr (fun name expr -> ValueDef (name, expr)) <?> "variable binding")
 
 //parse an assignment command
 // let Name = Expr [, Name2 = Expr2]
@@ -63,7 +61,7 @@ let pnegativeExpr =
 do pexprRef :=
     let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
     let expr = opp.ExpressionParser
-    opp.TermParser <- (pfunction <|> pterm <|> pnegativeExpr <|> pbracketedExpr) .>> ws
+    opp.TermParser <- (pfunctionCall <|> pterm <|> pnegativeExpr <|> pbracketedExpr) .>> ws
     //BEDMAS
     opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Subtract (x, y)))
     opp.AddOperator(InfixOperator("+", ws, 2, Associativity.Left, fun x y -> Add (x, y)))

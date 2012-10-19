@@ -6,9 +6,9 @@ type Name = string
 and Expr =
 //Simple term (constant or variable)
 | Constant      of double
-| Variable      of Name
+| Fetch         of Name
 //Single-parameter function
-| FunctionCall  of Name * Expr
+| FunctionCall  of Name * Expr list
 //BEDMAS operators
 | Add           of Expr * Expr
 | Multiply      of Expr * Expr

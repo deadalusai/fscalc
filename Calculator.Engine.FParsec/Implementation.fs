@@ -41,9 +41,9 @@ let rec evalExpr state expr =
     match expr with
     //constants and variables
     | Constant c -> c
-    | Variable n -> evalVariable state n
+    | Fetch n -> evalFetch state n
     //functions
-    | FunctionCall (name, e) -> evalFunction state name e
+    | FunctionCall (name, args) -> evalFunction state name args
     //operators
     | Add (l, r) -> (evalExpr' l) + (evalExpr' r)
     | Multiply (l, r) -> (evalExpr' l) * (evalExpr' r)
@@ -53,33 +53,30 @@ let rec evalExpr state expr =
     | Modulo (l, r) -> (evalExpr' l) % (evalExpr' r)
     | Negative e -> -1.0 * (evalExpr' e)
 
-and evalFunction state name expr = //TODO make expr -> exprList (list of arguments)    
-    let evalBuiltinFunction state f argExprs =
-        match argExprs with
+and evalFunction state name argExprs =
+    let evalBuiltinFunction state f fArgExprs =
+        match fArgExprs with
         | argExpr::[] -> f (evalExpr state argExpr)
-        | _           -> failwith "Expected 1 args, got %i" (List.length argExprs)
+        | _           -> failwith (sprintf "Expected 1 args, got %i" (List.length argExprs))
 
     let evalUserFunction initialState fArgNames fArgExprs fExpr =
         //assert that arguments have been provided
-        let required = List.length fArgNames
-        let got = List.length fArgExprs
-
-        //TODO: pattern-match this?
-        if not (required = got) then
-            failwith (sprintf "Expected %i args, got %i" required got)
-        
-        //push each argument into the function state
-        let args = List.zip fArgNames fArgExprs
-        let updateState state (name, expr) = setMem state name (Value (evalExpr initialState expr))
-        let fState = args |> List.fold updateState initialState
-        evalExpr fState fExpr
+        match (List.length fArgNames, List.length fArgExprs) with
+        | (required, got) when not (required = got) -> failwith (sprintf "Expected %i args, got %i" required got)
+        | _ -> 
+            //push each argument into the function state
+            let args = List.zip fArgNames fArgExprs
+            let updateState state (argName, argExpr) = setMem state argName (Value (evalExpr initialState argExpr))
+            let fState = args |> List.fold updateState initialState
+            //And evaluate
+            evalExpr fState fExpr
     
     match (getStored state name) with
-    | Builtin f                -> evalBuiltinFunction state f (expr::[])
-    | Function (args, funExpr) -> evalUserFunction state args (expr::[]) funExpr
+    | Builtin f                -> evalBuiltinFunction state f argExprs 
+    | Function (args, funExpr) -> evalUserFunction state args argExprs funExpr
     | _                        -> failwith (sprintf "%s is not a function" name)
 
-and evalVariable state name =
+and evalFetch state name =
     match (getStored state name) with
     | Value f -> f
     | _       -> failwith (sprintf "%s is not a value" name)
@@ -102,6 +99,7 @@ let executeStatement state statement =
                 (newState, (name, sprintf "%g" result) :: reports)
 
             | FunctionDef (name, args, expr) ->
+                //TODO: check for recursive functions! We can't branch, so all recursive functions will recurse forever...
                 let newState = setMem state name (Function (args, expr))
                 (newState, (name, sprintf "Function %A = %A" args expr) :: reports)
         
