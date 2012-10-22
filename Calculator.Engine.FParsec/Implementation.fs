@@ -36,22 +36,48 @@ let private getStored state name =
     | Some s -> s
     | None   -> failwith (sprintf "Name %s not defined" name)
 
+let rec assertFunctionCallNotRecusive state functionName expr =
+    //recursively check each sub-expression in expr, looking for a call to function functionName
+    let check subExpr = 
+        assertFunctionCallNotRecusive state functionName subExpr
+    match expr with
+    | FunctionCall (name, args) -> 
+        //check the function called is not *this* function
+        if name = functionName then 
+            failwith "Recursive functions are not allowed (%s)" name
+        //check each expression passed in argument
+        List.iter check args
+        //check the expression of the function being called
+        match getStored state name with
+        | Function (_, expr) -> check expr
+        | _                  -> () //ignore builtins or values
+    //check all other sub-expressions
+    | Add      (l, r) -> check l; check r
+    | Multiply (l, r) -> check l; check r
+    | Subtract (l, r) -> check l; check r
+    | Divide   (l, r) -> check l; check r
+    | Power    (l, r) -> check l; check r
+    | Modulo   (l, r) -> check l; check r
+    | Negative e      -> check e
+    //ignore constants and fetch operations
+    | _                         -> ()
+
 let rec evalExpr state expr =
     let evalExpr' = evalExpr state
     match expr with
     //constants and variables
     | Constant c -> c
-    | Fetch n -> evalFetch state n
+    | Fetch n    -> evalFetch state n
     //functions
     | FunctionCall (name, args) -> evalFunction state name args
     //operators
-    | Add (l, r) -> (evalExpr' l) + (evalExpr' r)
-    | Multiply (l, r) -> (evalExpr' l) * (evalExpr' r)
-    | Subtract (l, r) -> (evalExpr' l) - (evalExpr' r)
-    | Divide (l, r) -> (evalExpr' l) / (evalExpr' r)
-    | Power (l, r) -> System.Math.Pow(evalExpr' l, evalExpr' r)
-    | Modulo (l, r) -> (evalExpr' l) % (evalExpr' r)
-    | Negative e -> -1.0 * (evalExpr' e)
+    | Add       (l, r) -> (evalExpr' l) + (evalExpr' r)
+    | Multiply  (l, r) -> (evalExpr' l) * (evalExpr' r)
+    | Subtract  (l, r) -> (evalExpr' l) - (evalExpr' r)
+    | Divide    (l, r) -> (evalExpr' l) / (evalExpr' r)
+    | Power     (l, r) -> System.Math.Pow(evalExpr' l, evalExpr' r)
+    | Modulo    (l, r) -> (evalExpr' l) % (evalExpr' r)
+    | Negative  e      -> -1.0 * (evalExpr' e)
 
 and evalFunction state name argExprs =
     let evalBuiltinFunction state f fArgExprs =
@@ -99,7 +125,8 @@ let executeStatement state statement =
                 (newState, (name, sprintf "%g" result) :: reports)
 
             | FunctionDef (name, args, expr) ->
-                //TODO: check for recursive functions! We can't branch, so all recursive functions will recurse forever...
+                //check for recursive functions! We can't branch, so all recursive functions will recurse forever...
+                assertFunctionCallNotRecusive state name expr
                 let newState = setMem state name (Function (args, expr))
                 (newState, (name, sprintf "Function %A = %A" args expr) :: reports)
         
