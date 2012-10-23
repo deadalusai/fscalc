@@ -128,7 +128,8 @@ let executeStatement state statement =
                 //check for recursive functions! We can't branch, so all recursive functions will recurse forever...
                 assertFunctionCallNotRecusive state name expr
                 let newState = setMem state name (Function (args, expr))
-                (newState, (name, sprintf "Function %A = %A" args expr) :: reports)
+                let signature = sprintf "%s %s" name (System.String.Join(" ", args))
+                (newState, (signature, sprintf "%A" expr) :: reports)
         
         //fold the list of "updates" to generate a new state and a list of assignments
         let newState, reports = List.fold applyUpdate (state, []) definitions
