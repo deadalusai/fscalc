@@ -9,9 +9,10 @@ open Calculator.Ast
 let private ws = spaces
 let private ws1 = spaces1
 let private str_ws s = skipString s >>? ws
+let private ws_str s = ws >>. skipString s
 let private str_ws1 s = skipString s >>? ws1
 let private ws_str_ws s = ws >>. skipString s .>> ws
-let private betweenBrackets p = between (ws_str_ws "(") (ws_str_ws ")") p
+let private betweenBrackets p = between (str_ws "(") (ws_str ")") p
 
 //matches "names"
 let private pname : Parser<Name, unit> = regexL "[a-zA-Z_][a-zA-Z_0-9]*" "name"
@@ -61,7 +62,10 @@ let pnegativeExpr =
 do pexprRef :=
     let opp = new OperatorPrecedenceParser<Expr, unit, unit> ()
     let expr = opp.ExpressionParser
-    opp.TermParser <- (pfunctionCall <|> pterm <|> pnegativeExpr <|> pbracketedExpr) .>> ws
+    opp.TermParser <-  choice [ pfunctionCall; 
+                                pterm; 
+                                pnegativeExpr; 
+                                pbracketedExpr; ] .>> ws
     //BEDMAS
     opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Subtract (x, y)))
     opp.AddOperator(InfixOperator("+", ws, 2, Associativity.Left, fun x y -> Add (x, y)))
@@ -71,4 +75,7 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo (x, y)))
     expr
 
-let pcommand_eof = ((pdefinitionList |>> DefinitionList) <|> (pexpr |>> Single)) .>> eof
+let pcommand = choice [(pdefinitionList |>> DefinitionList); 
+                       (pexpr           |>> Single        )]
+
+let pcommand_eof = pcommand .>> eof
