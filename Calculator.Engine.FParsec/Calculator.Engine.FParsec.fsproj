@@ -42,7 +42,7 @@
   <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
   <ItemGroup>
     <Compile Include="Ast.fs" />
-    <Compile Include="Engine.fs" />
+    <Compile Include="Parsers.fs" />
     <Compile Include="Implementation.fs" />
     <None Include="packages.config" />
   </ItemGroup>
