@@ -14,19 +14,26 @@ type Stored =
 type State = { MemoryMap : Map<string, Stored>;
                Debug: bool }
    
-let private setMem state key value = { state with MemoryMap = Map.add key value state.MemoryMap }
-let private clearMem state key = { state with MemoryMap = Map.remove key state.MemoryMap }
+type Statement =
+| SingleExpr     of Expr
+| DefinitionList of Definition list //definition ops can be done en-mass
 
 type ParseResult =
 | ParseSuccess of Statement
-| ParseError of string
+| ParseError   of string
 
 type CommandResult = 
-| SingleResult of State * float
+| SingleResult     of State * float
 | DefinitionResult of State * (string * string) list
 
+let private setMem state key value = { state with MemoryMap = Map.add key value state.MemoryMap }
+let private clearMem state key = { state with MemoryMap = Map.remove key state.MemoryMap }
+
+let private pcommand = choice [(pdefinitionList |>> DefinitionList);
+                               (pexpr           |>> SingleExpr    )] .>> eof
+
 let parseLine state line =
-    let parserResult = runParserOnString pcommand_eof () "Input" line
+    let parserResult = runParserOnString pcommand () "Input" line
     match parserResult with
     | Success (expr, state, pos) -> ParseSuccess expr
     | Failure (msg, err, state)  -> ParseError msg
@@ -35,32 +42,6 @@ let private getStored state name =
     match (Map.tryFind name state.MemoryMap) with
     | Some s -> s
     | None   -> failwith (sprintf "Name %s not defined" name)
-
-let rec assertFunctionCallNotRecusive state functionName expr =
-    //recursively check each sub-expression in expr, looking for a call to function functionName
-    let check subExpr = 
-        assertFunctionCallNotRecusive state functionName subExpr
-    match expr with
-    | FunctionCall (name, args) -> 
-        //check the function called is not *this* function
-        if name = functionName then 
-            failwith "Recursive functions are not allowed (%s)" name
-        //check each expression passed in argument
-        List.iter check args
-        //check the expression of the function being called
-        match getStored state name with
-        | Function (_, expr) -> check expr
-        | _                  -> () //ignore builtins or values
-    //check all other sub-expressions
-    | Add      (l, r) -> check l; check r
-    | Multiply (l, r) -> check l; check r
-    | Subtract (l, r) -> check l; check r
-    | Divide   (l, r) -> check l; check r
-    | Power    (l, r) -> check l; check r
-    | Modulo   (l, r) -> check l; check r
-    | Negative e      -> check e
-    //ignore constants and fetch operations
-    | _                         -> ()
 
 let rec evalExpr state expr =
     let evalExpr' = evalExpr state
@@ -107,10 +88,44 @@ and evalFetch state name =
     | Value f -> f
     | _       -> failwith (sprintf "%s is not a value" name)
 
+//Helper methods for sanity-checking user-defined functions
+let rec private assertFunctionCallNotRecusive state functionName expr =
+    //recursively check each sub-expression in expr, looking for a call to function functionName
+    let check subExpr = 
+        assertFunctionCallNotRecusive state functionName subExpr
+    match expr with
+    | FunctionCall (name, args) -> 
+        //check the function called is not *this* function
+        if name = functionName then 
+            failwith (sprintf "Recursive functions are not allowed (%s)" name)
+        //check each expression passed in argument
+        List.iter check args
+        //check the expression of the function being called
+        match getStored state name with
+        | Function (_, expr) -> check expr
+        | _                  -> () //ignore builtins or values
+    //check all other sub-expressions
+    | Add      (l, r) -> check l; check r
+    | Multiply (l, r) -> check l; check r
+    | Subtract (l, r) -> check l; check r
+    | Divide   (l, r) -> check l; check r
+    | Power    (l, r) -> check l; check r
+    | Modulo   (l, r) -> check l; check r
+    | Negative e      -> check e
+    //ignore constants and fetch operations
+    | _ -> ()
+
+let private assertFunctionArgumentsDistinct args =
+    let checkUnique stack arg =
+        if Set.contains arg stack then
+            failwith (sprintf "Duplicate argument names not allowed (%s)" arg)
+        Set.add arg stack
+    args |> List.fold checkUnique Set.empty |> ignore
+
 /// Execute a statement
 let executeStatement state statement =
     match statement with
-    | Single expression ->
+    | SingleExpr expression -> 
         let result = (evalExpr state expression)
         let newState = setMem state "_" (Value result)
         SingleResult (newState, result)
@@ -127,6 +142,7 @@ let executeStatement state statement =
             | FunctionDef (name, args, expr) ->
                 //check for recursive functions! We can't branch, so all recursive functions will recurse forever...
                 assertFunctionCallNotRecusive state name expr
+                assertFunctionArgumentsDistinct args
                 let newState = setMem state name (Function (args, expr))
                 let signature = sprintf "%s %s" name (System.String.Join(" ", args))
                 (newState, (signature, sprintf "%A" expr) :: reports)

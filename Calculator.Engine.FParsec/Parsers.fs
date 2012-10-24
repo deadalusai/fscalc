@@ -24,7 +24,7 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
-let pterm = (pfloat |>> Constant <?> "constant") <|> (pname |>> Fetch <?> "fetch variable")
+let pterm = (pfloat |>> Constant <?> "constant") <|> (pname |>> Fetch <?> "variable")
 
 //parse any supported Functions
 let pfunctionCall =
@@ -74,9 +74,3 @@ do pexprRef :=
     opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo   (x, y)))
     //Return the created expression parser
     opp.ExpressionParser
-
-let pcommand_eof = 
-    let definitionStatements = pdefinitionList |>> DefinitionList
-    let singleStatement      = pexpr           |>> Single
-    
-    (singleStatement <|> definitionStatements) .>> eof

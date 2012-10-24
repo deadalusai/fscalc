@@ -19,11 +19,6 @@ and Expr =
 //Inverters
 | Negative      of Expr
 
-and Statement =
-| Single of Expr
-//VarAssignment ops are done en-mass
-| DefinitionList of Definition list
-
 //Assignment of the result of the given expression to memory
 and Definition = 
 | ValueDef of Name * Expr
