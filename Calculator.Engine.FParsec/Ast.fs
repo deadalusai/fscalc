@@ -3,23 +3,23 @@
 type Name = string
 
 //Any term of constant or variable value
-and Expr =
+type Expr =
 //Simple term (constant or variable)
-| Constant      of double
-| Fetch         of Name
-//Single-parameter function
-| FunctionCall  of Name * Expr list
+| Const of double
+| Fetch of Name
+//Function calls
+| Call  of Name * Expr list
 //BEDMAS operators
-| Add           of Expr * Expr
-| Multiply      of Expr * Expr
-| Subtract      of Expr * Expr
-| Divide        of Expr * Expr
-| Power         of Expr * Expr
-| Modulo        of Expr * Expr
+| Add of Expr * Expr
+| Mul of Expr * Expr
+| Sub of Expr * Expr
+| Div of Expr * Expr
+| Pow of Expr * Expr
+| Mod of Expr * Expr
 //Inverters
-| Negative      of Expr
+| Neg of Expr
 
 //Assignment of the result of the given expression to memory
-and Definition = 
+type Definition = 
 | ValueDef of Name * Expr
 | FunctionDef of Name * Name list * Expr

@@ -15,8 +15,8 @@ type State = { MemoryMap : Map<string, Stored>;
                Debug: bool }
    
 type Statement =
-| SingleExpr     of Expr
-| DefinitionList of Definition list //definition ops can be done en-mass
+| Single  of Expr
+| DefList of Definition list //definition ops can be done en-mass
 
 type ParseResult =
 | ParseSuccess of Statement
@@ -29,8 +29,8 @@ type CommandResult =
 let private setMem state key value = { state with MemoryMap = Map.add key value state.MemoryMap }
 let private clearMem state key = { state with MemoryMap = Map.remove key state.MemoryMap }
 
-let private pcommand = choice [(pdefinitionList |>> DefinitionList);
-                               (pexpr           |>> SingleExpr    )] .>> eof
+let private pcommand = choice [(pdefinitionList |>> DefList);
+                               (pexpr           |>> Single )] .>> eof
 
 let parseLine state line =
     let parserResult = runParserOnString pcommand () "Input" line
@@ -44,21 +44,21 @@ let private getStored state name =
     | None   -> failwith (sprintf "Name %s not defined" name)
 
 let rec evalExpr state expr =
-    let evalExpr' = evalExpr state
+    let eval = evalExpr state
     match expr with
     //constants and variables
-    | Constant c -> c
-    | Fetch n    -> evalFetch state n
+    | Const c -> c
+    | Fetch n -> evalFetch state n
     //functions
-    | FunctionCall (name, args) -> evalFunction state name args
+    | Call (name, args) -> evalFunction state name args
     //operators
-    | Add       (l, r) -> (evalExpr' l) + (evalExpr' r)
-    | Multiply  (l, r) -> (evalExpr' l) * (evalExpr' r)
-    | Subtract  (l, r) -> (evalExpr' l) - (evalExpr' r)
-    | Divide    (l, r) -> (evalExpr' l) / (evalExpr' r)
-    | Power     (l, r) -> System.Math.Pow(evalExpr' l, evalExpr' r)
-    | Modulo    (l, r) -> (evalExpr' l) % (evalExpr' r)
-    | Negative  e      -> -1.0 * (evalExpr' e)
+    | Add (l, r) -> (eval l) + (eval r)
+    | Mul (l, r) -> (eval l) * (eval r)
+    | Sub (l, r) -> (eval l) - (eval r)
+    | Div (l, r) -> (eval l) / (eval r)
+    | Pow (l, r) -> System.Math.Pow(eval l, eval r)
+    | Mod (l, r) -> (eval l) % (eval r)
+    | Neg e      -> (eval e) * -1.0
 
 and evalFunction state name argExprs =
     let evalBuiltinFunction state f fArgExprs =
@@ -94,7 +94,7 @@ let rec private assertFunctionCallNotRecusive state functionName expr =
     let check subExpr = 
         assertFunctionCallNotRecusive state functionName subExpr
     match expr with
-    | FunctionCall (name, args) -> 
+    | Call (name, args) -> 
         //check the function called is not *this* function
         if name = functionName then 
             failwith (sprintf "Recursive functions are not allowed (%s)" name)
@@ -105,13 +105,13 @@ let rec private assertFunctionCallNotRecusive state functionName expr =
         | Function (_, expr) -> check expr
         | _                  -> () //ignore builtins or values
     //check all other sub-expressions
-    | Add      (l, r) -> check l; check r
-    | Multiply (l, r) -> check l; check r
-    | Subtract (l, r) -> check l; check r
-    | Divide   (l, r) -> check l; check r
-    | Power    (l, r) -> check l; check r
-    | Modulo   (l, r) -> check l; check r
-    | Negative e      -> check e
+    | Add (l, r) -> check l; check r
+    | Mul (l, r) -> check l; check r
+    | Sub (l, r) -> check l; check r
+    | Div (l, r) -> check l; check r
+    | Pow (l, r) -> check l; check r
+    | Mod (l, r) -> check l; check r
+    | Neg e      -> check e
     //ignore constants and fetch operations
     | _ -> ()
 
@@ -125,12 +125,12 @@ let private assertFunctionArgumentsDistinct args =
 /// Execute a statement
 let executeStatement state statement =
     match statement with
-    | SingleExpr expression -> 
+    | Single expression -> 
         let result = (evalExpr state expression)
         let newState = setMem state "_" (Value result)
         SingleResult (newState, result)
         
-    | DefinitionList definitions ->
+    | DefList definitions ->
         //Each update may optionally add to the list of "assignment results"
         let applyUpdate (state, reports) (def:Definition) =
             match def with

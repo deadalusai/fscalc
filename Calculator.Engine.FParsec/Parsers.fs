@@ -24,12 +24,12 @@ let pexpr, private pexprRef = createParserForwardedToRef<Expr, _> ()
 let pbracketedExpr = betweenBrackets pexpr <?> "bracketed expression"
 
 //parse a float (constant) or variable (name) and convert it to a Term expression
-let pterm = (pfloat |>> Constant <?> "constant") <|> (pname |>> Fetch <?> "variable")
+let pterm = (pfloat |>> Const <?> "constant") <|> (pname |>> Fetch <?> "variable")
 
 //parse any supported Functions
 let pfunctionCall =
     let pargs = sepEndBy1 (pterm <|> pbracketedExpr) ws1
-    attempt (pname .>> ws1 .>>. pargs) |>> FunctionCall <?> "function call"
+    attempt (pname .>> ws1 .>>. pargs) |>> Call <?> "function call"
     
 //Parse "= Expr" -> Expr
 let private pEqExpr = ws_str_ws "=" >>. pexpr
@@ -56,7 +56,7 @@ let pdefinitionList =
 //expression can be any term or bracketed expression
 let pnegativeExpr =
     let negSymbols = (many1Chars (pchar '-')) 
-    pipe2 negSymbols (pterm <|> pbracketedExpr) (fun s e -> if s.Length % 2 = 0 then e else Negative e) <?> "negative expression"
+    pipe2 negSymbols (pterm <|> pbracketedExpr) (fun s e -> if s.Length % 2 = 0 then e else Neg e) <?> "negative expression"
 
 //implement the pexpr parser
 do pexprRef :=
@@ -66,11 +66,11 @@ do pexprRef :=
                                  pnegativeExpr; 
                                  pbracketedExpr; ] "expression" .>> ws
     //BEDMAS
-    opp.AddOperator(InfixOperator("-",   ws, 1, Associativity.Left, fun x y -> Subtract (x, y)))
-    opp.AddOperator(InfixOperator("+",   ws, 2, Associativity.Left, fun x y -> Add      (x, y)))
-    opp.AddOperator(InfixOperator("*",   ws, 3, Associativity.Left, fun x y -> Multiply (x, y)))
-    opp.AddOperator(InfixOperator("/",   ws, 4, Associativity.Left, fun x y -> Divide   (x, y)))
-    opp.AddOperator(InfixOperator("^",   ws, 5, Associativity.Left, fun x y -> Power    (x, y)))
-    opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Modulo   (x, y)))
+    opp.AddOperator(InfixOperator("-",   ws, 1, Associativity.Left, fun x y -> Sub (x, y)))
+    opp.AddOperator(InfixOperator("+",   ws, 2, Associativity.Left, fun x y -> Add (x, y)))
+    opp.AddOperator(InfixOperator("*",   ws, 3, Associativity.Left, fun x y -> Mul (x, y)))
+    opp.AddOperator(InfixOperator("/",   ws, 4, Associativity.Left, fun x y -> Div (x, y)))
+    opp.AddOperator(InfixOperator("^",   ws, 5, Associativity.Left, fun x y -> Pow (x, y)))
+    opp.AddOperator(InfixOperator("mod", ws, 6, Associativity.Left, fun x y -> Mod (x, y)))
     //Return the created expression parser
     opp.ExpressionParser
