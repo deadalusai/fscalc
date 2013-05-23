@@ -9,7 +9,7 @@ let printsn (s:string) = System.Console.WriteLine s
 let printVariables (state:State) =
     let variables = Map.toList state.MemoryMap |> 
                     List.sortBy (fun (key, _) -> key) |>
-                    List.sortBy (fun (_, s) -> s.GetType().Name) // hack hack - sort by type (functions first)
+                    List.sortBy (fun (___, s) -> s.GetType().Name) // hack hack - sort by type (functions first)
 
     let widestKey, _ = variables |> Seq.maxBy (fun (key, _) -> key.Length)
 
